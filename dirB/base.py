@@ -3,6 +3,7 @@ import os
 import h5py
 import uuid
 import json
+import pathlib
 from datetime import date, datetime
 from typing import Dict, List, Tuple
 
@@ -49,8 +50,7 @@ class zsan_DirB:
     """
 
     def __init__(self):
-        self._ID: str = None
-        self._nombreFichero: str = None
+        self._nombreDeFichero: str = None
         self._fullPath: str = None
         self._directorio: str = None
 
@@ -66,7 +66,7 @@ class zsan_DirB:
     def __repr__(self):
         """ Resumen del DIR-B  mostrando el atributo de la clase dataFrameAtributos. Se llama con print(unDIR-B)
         """
-        cadena = '\n ===>  Descripción DIR-B ' + self.nombreFichero
+        cadena = '\n ===>  Descripción DIR-B ' + self.nombreDeFichero
         cadena += '\n'
 
         if self.dicAtrCaso: 
@@ -93,14 +93,10 @@ class zsan_DirB:
                 cadena += '\n **** NO hay ATRIBUTOS cargados en las SOLUCIONES el DIR-B  ****** \n'
         cadena += '\n'         
         return cadena
-
-    @property
-    def ID(self):
-        return self._ID
     
     @property
-    def nombreFichero(self):
-        return self._nombreFichero
+    def nombreDeFichero(self):
+        return self._nombreDeFichero
     
     @property
     def fullPath(self):
@@ -133,14 +129,10 @@ class zsan_DirB:
     @property
     def numeroSoluciones(self):
         return self._numeroSoluciones
-    
-    @ID.setter
-    def ID(self, new_ID: str):
-        self._ID = new_ID
 
-    @nombreFichero.setter
-    def nombreFichero(self, new_nombreFichero: str):
-        self._nombreFichero = new_nombreFichero
+    @nombreDeFichero.setter
+    def nombreDeFichero(self, new_nombreDeFichero: str):
+        self._nombreDeFichero = new_nombreDeFichero
 
     @fullPath.setter
     def fullPath(self, new_fullPath: str):
@@ -174,19 +166,21 @@ class zsan_DirB:
     def numeroSoluciones(self, new_numeroSoluciones: str):
         self._numeroSoluciones = new_numeroSoluciones
 
-    def creaNuevoCaso(self, diccionarioConEl_JSON_IN: Dict, diccionarioAtributos: Dict = None, directorio: str = os.getcwd()):
+    def creaNuevoCaso(self, diccionarioConEl_JSON_IN: Dict, diccionarioAtributos: Dict = None, 
+                      directorio: str = os.getcwd(), 
+                      nombreDeFichero: str = str(datetime.now().strftime("%Y-%m-%dT%H.%M.%S")) + '_' + str(uuid.uuid4()) + '.hdf5'):
         """Crea un nuevo caso teniendo en cuenta el dataset principal y los metadatos
 
         :param Dict diccionarioConEl_JSON_IN: dataset principal en formato JSON. Contiene los parámetros de entrada del caso.
         :param Dict diccionarioAtributos: diccionario con los metadatos del caso.
         :param str directorio: directorio donde se creará el caso.
-
+        :param str nombreDeFichero: nombre del fichero HDF5 que se utilizará.
         """
-        idCaso = str(datetime.now().strftime("%Y-%m-%dT%H.%M.%S")) + '_' + str(uuid.uuid4())
 
-        nombreFichero = idCaso + '.hdf5'
-        fullPath = os.path.join(directorio, nombreFichero)
-
+        if pathlib.Path(nombreDeFichero).suffix != ".hdf5":
+            raise ValueError("El fichero " +  nombreDeFichero + " no tiene extensión HDF5.")
+        
+        fullPath = os.path.join(directorio, nombreDeFichero)
         with h5py.File(fullPath, 'w') as f:
             caso = f.create_group('CASO')
             
@@ -200,27 +194,24 @@ class zsan_DirB:
                     
         esperarDesbloqueoDeHDF5(fullPath)
 
-        self._actualizaMiembros(idCaso, fullPath, directorio)
+        self._actualizaMiembros(nombreDeFichero, fullPath, directorio)
     
-    def cargaCaso(self, idCaso: str, directorio: str = os.getcwd()):
+    def cargaCaso(self, nombreDeFichero: str, directorio: str = os.getcwd(), fileName: str = ""):
         """Carga un caso identificado con idCaso
         
-        :param str idCaso: identificador único del caso.
+        :param str nombreDeFichero: nombre del fichero con el caso a cargar (identificador).
         :param str directorio: directorio desde donde se cargará el caso.
 
         """
-        nombreFichero = idCaso + '.hdf5'
-        fullPath = os.path.join(directorio, nombreFichero)
+        fullPath = os.path.join(directorio, nombreDeFichero)
 
         if not(os.path.exists(fullPath)):
-            cadena = 'El fichero ' + fullPath + ' no existe '
-            raise ValueError(cadena)
+            raise ValueError('El fichero ' + fullPath + ' no existe.')
         
-        self._actualizaMiembros(idCaso, fullPath, directorio)
+        self._actualizaMiembros(nombreDeFichero, fullPath, directorio)
     
-    def _actualizaMiembros(self, ID: str, fullPath: str, directorio: str = os.getcwd()):
-        self.ID = ID
-        self.nombreFichero = ID + '.hdf5'        
+    def _actualizaMiembros(self, nombreDeFichero: str, fullPath: str, directorio: str = os.getcwd()):
+        self.nombreDeFichero = nombreDeFichero        
         self.fullPath = fullPath
         self.directorio = directorio
         
@@ -287,7 +278,7 @@ class zsan_DirB:
     def guardaNuevaSolucion(self, diccionarioConEl_JSON_OUT: Dict, diccionarioAtributos: Dict = None):
         """Guarda una nueva solución en el DIR-B.
 
-        :param Dict diccionarioConEl_JSON_IN: dataset principal en formato JSON. Contiene los parámetros de entrada del caso.
+        :param Dict diccionarioConEl_JSON_OUT: dataset principal en formato JSON. Contiene los parámetros de entrada del caso.
         :param Dict diccionarioAtributos: diccionario con los metadatos del caso.
         """
 
@@ -326,7 +317,7 @@ class zsan_DirB:
         """
         
         numeroDeSolucion = str(numeroDeSolucion)
-        if not(numeroDeSolucion in self.listaSoluciones):
+        if not numeroDeSolucion in self.listaSoluciones:
             raise ValueError('No existe número de caso ', numeroDeSolucion)
         
         with h5py.File(self.fullPath, 'r') as f:
@@ -356,7 +347,7 @@ class zsan_DirB:
     def representaAtributosDelCaso(self):
         """ Muestra atributos del caso en forma bonita.  Recordar que print(a) muestra todo detalle
         """
-        cadena = '\n ===>  Descripción DIR-B ' + self.nombreFichero
+        cadena = '\n ===>  Descripción DIR-B ' + self.nombreDeFichero
         cadena += '\n'
         if self.dicAtrCaso: 
             cadena += '\n **** Atributos del CASO incluido en el DIR-B  ****** '
