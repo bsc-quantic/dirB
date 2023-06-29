@@ -299,9 +299,40 @@ class zsan_DirB:
         
         self._actualizaMiembrosDerivados()
 
+    def guardaNuevasSoluciones(self, listaDeSoluciones: List[Dict], listaDeAtributosDeSoluciones: List[Dict]):
+        """ Guarda las nuevas soluciones pasadas por parámetro en el actual dirB.
+
+        :param List[Dict] listaDeSoluciones: lista con los diccionarios que representan las soluciones a guardar.
+        :param List[Dict] listaDeAtributosDeSoluciones: lista de los atributos de las soluciones a guardar.
+        """
+
+        if len(listaDeSoluciones) != len(listaDeAtributosDeSoluciones):
+            raise ValueError("Las listas no tienen el mismo tamaño!")
+
+        with h5py.File(self.fullPath, 'a') as f:
+            if self.numeroSoluciones == 0:
+                f.create_group('/SOLUCIONES')
+
+            idSolucion: int = self.numeroSoluciones + 1
+            for index, solucion in enumerate(listaDeSoluciones):
+                pathDeSolucion: str = '/SOLUCIONES/' + str(idSolucion)
+                f.create_group(pathDeSolucion)
+
+                f[pathDeSolucion].create_dataset("JSON_OUT",
+                                                 data=json.dumps(solucion, ensure_ascii=False),
+                                                 dtype=h5py.string_dtype(encoding='utf-8'))
+            
+                atributosDeSolucion = listaDeAtributosDeSoluciones[index]
+                if atributosDeSolucion:
+                    for key, value in atributosDeSolucion.items():
+                        f[pathDeSolucion].attrs[key] = value
+
+                idSolucion += 1
+
     def recuperaCasoComoDiccionario(self):
         """ Recupera el caso como diccionario === NO COMO JSON. Dicicionario objeto natural PYTHON
         """
+
         with h5py.File(self.fullPath, 'r') as f:
             aux1 = f['/CASO/JSON_IN'][()]
             aux2 = aux1.decode("utf-8")
