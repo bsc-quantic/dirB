@@ -192,11 +192,11 @@ class zsan_DirB:
                 for key, value in diccionarioAtributos.items():
                     caso.attrs[key] = value
                     
-        esperarDesbloqueoDeHDF5(fullPath)
+        esperarDesbloqueoDeHDF5(fullPath,segundosDeSleep=0.1)
 
         self._actualizaMiembros(nombreDeFichero, fullPath, directorio)
     
-    def cargaCaso(self, nombreDeFichero: str, directorio: str = os.getcwd(), fileName: str = ""):
+    def cargaCaso(self, nombreDeFichero: str, directorio: str = os.getcwd()):
         """Carga un caso identificado con idCaso
         
         :param str nombreDeFichero: nombre del fichero con el caso a cargar (identificador).

@@ -1,35 +1,45 @@
 import os
-
+import shutil
 from typing import List, Dict
 
 from dirB.base import zsan_DirB
 from dirB.utils import esperarDesbloqueoDeHDF5
 
+def _atributosDeCasosIguales(nombreDelCasoBase: str, listaDeFicherosConSoluciones: List[str]) -> bool:
+    
+    return True
 
-def mergeListaDeHDF5(nombresDeFichero: List[str], nombreDeFichero_salida: str, directorio: str = os.getcwd()):
-    """Fusiona todos los ficheros de la lista en un único fichero con nombre 'ficheroDeSalida'
+def mergeListaDeSoluciones(nombreDelCasoBase: str, listaDeFicherosConSoluciones: List[str], nombreDeFichero_salida: str, directorio: str = os.getcwd()):
+    """Añade la lista de soluciones al caso base proporcionado, dejando el fichero HDF5 resultante en el 'nombreDeFichero_salida'.
 
-    :param List[str] nombresDeFichero: lista de nombres de ficheros a ser combinados
+    :param str nombreDelCasoBase: nombre del caso base al que añadir la soluciones
+    :param List[str] listaDeFicherosConSoluciones: lista de nombres de ficheros que contienen las soluciones a ser añadidas la caso base
     :param str nombreDefichero_salida: nombre del fichero resultante
     :param str directorio: directorio donde se esperan encontrar los casos
     """
     
+    # Initial checks
     fullPathSalida = os.path.join(directorio, nombreDeFichero_salida)
     if os.path.exists(fullPathSalida): raise ValueError('El fichero ' + fullPathSalida + ' YA EXISTE == REVISAR  ')
 
-    for fichero in nombresDeFichero:
+    for fichero in listaDeFicherosConSoluciones:
         fullPath = os.path.join(directorio, fichero)
         if not os.path.exists(fullPath): raise ValueError('El fichero ' + fullPath + ' no existe ')
 
-    os.rename(nombresDeFichero[0], fullPathSalida)
-    esperarDesbloqueoDeHDF5(fullPathSalida, segundosDeSleep=0.1)
+    if not _atributosDeCasosIguales(nombreDelCasoBase, listaDeFicherosConSoluciones):
+        user_input = input('Los atributos de caso de los ficheros proporcionados no coinciden. Continuar con el merge? (Y/n)')
+        if user_input.lower() == "n": exit(0)
 
+    # Prepare resulting file
+    shutil.copy(nombreDelCasoBase, fullPathSalida)
+
+    # Get all the dicts from the list of solution files and add them all in the resulting file
     listaDeSoluciones: List[Dict] = []
     listaDeAtributosDeSoluciones: List[Dict] = []
 
-    dirB_salida = zsan_DirB();    dirB_salida.cargaCaso(nombreDeFichero_salida)
-    for nombreDeFichero in nombresDeFichero[1:]:
-        dirB_aux = zsan_DirB();    dirB_aux.cargaCaso(nombreDeFichero)
+    dirB_salida = zsan_DirB();    dirB_salida.cargaCaso(nombreDeFichero_salida, directorio)
+    for nombreDeFichero in listaDeFicherosConSoluciones:
+        dirB_aux = zsan_DirB();    dirB_aux.cargaCaso(nombreDeFichero, directorio)
 
         for numDeSolucion in dirB_aux.listaSoluciones:
             solucion = dirB_aux.recuperaSolucionComoDiccionario(numDeSolucion)
