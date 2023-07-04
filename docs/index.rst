@@ -11,7 +11,7 @@ Welcome to DirB's documentation!
    :caption: Contents:
 
    README <readme_link>
-   modules
+   Code documentation <modules>
 
 Indices and tables
 ==================
