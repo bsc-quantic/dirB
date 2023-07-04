@@ -1,7 +1,7 @@
-Code documentation
-==================
+Classes and methods
+===================
 
 .. toctree::
    :maxdepth: 4
 
-   Classes and methods <dirB>
+   dirB
