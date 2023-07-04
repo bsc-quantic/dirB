@@ -10,6 +10,7 @@ Welcome to DirB's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   README <readme_link>
    modules
 
 Indices and tables
