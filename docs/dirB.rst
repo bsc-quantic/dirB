@@ -7,10 +7,35 @@ Submodules
 dirB.base module
 ----------------
 
-.. automodule:: dirB.base
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. currentmodule:: dirB.base
+
+.. autoclass:: zsan_DirB
+
+   Métodos principales
+   -------------------
+
+   .. automethod:: creaNuevoCaso
+   .. automethod:: cargaCaso
+   .. automethod:: guardaNuevaSolucion
+   .. automethod:: guardaNuevasSoluciones
+
+   Métodos adicionales
+   -------------------
+
+   .. automethod:: recuperaCasoComoDiccionario
+   .. automethod:: recuperaSolucionComoDiccionario
+   .. automethod:: representaAtributosDeTodasLasSoluciones
+   .. automethod:: representaAtributosDelCaso
+
+   Métodos para el postprocesado
+   -----------------------------
+
+   .. automethod:: listaSolucionesQueTienenDeterminadoAtributo
+   .. automethod:: listaSolucionesQue_NO_TienenDeterminadoAtributo
+   .. automethod:: atributosDeUnaSolucion
+   .. automethod:: siUnaSolucionTieneUnAtributo
+   .. automethod:: solucionesQueTienenUnValorEntreSusAtributos
+   .. automethod:: solucionesQueTieneUnAtributoEnUnaListaPosiblesValores
 
 dirB.merge module
 -----------------

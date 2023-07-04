@@ -4,7 +4,7 @@ import h5py
 import uuid
 import json
 import pathlib
-from datetime import date, datetime
+from datetime import datetime
 from typing import Dict, List, Tuple
 
 from dirB.utils import esperarDesbloqueoDeHDF5
@@ -12,41 +12,23 @@ from dirB.utils import esperarDesbloqueoDeHDF5
 
 class zsan_DirB:
     """
-    Una clase para tratamiento de DIR-B. En el fichero donde esta definida la clase existe documentación y ejemplos sencillos
-    Internamente, se guarda como un objeto hdf5 muy sencillo. Estructura:
-       / ==> fichero exntension hdf5 con un nombre: ID unico  
-       /CASO ==> es un grupo para albergar la info del caso.  
-             - JSON_IN: el dataset (nomenclatura hdf5) que contendrá la info JSON ==> a todos efectos: diccionarioPython del escenario.
-             - diccionarioAtributos: en aras de generalización y dado que los atributos pueden crecer y depender del problema particular,
-                         internamente se manejan como un diccionario que están asociados al grupo "JSON_IN"
+    Clase para el tratamiento de ficheros DIR-B, implementados sobre HDF5. La estructura de estos ficheros es sencilla:
+        
+        /CASO
+            JSON_IN
+        /SOLUCIONES
+            1
+                JSON_OUT_1
+            2
+                JSON_OUT_2
+            ...
 
-    El creador está pensado para ser utilizada en dos contextos:
-      a) Creación: en la cual, se persige crear el fichero a partir de info que el programa usuario de la clase esté utilizando
-                   En este uso: se invoca a __init__ con "diccionarioDel_JSON y diccionario de atributos" y se crea un objeto DIR-G
-                   (se escribe en fichero hdf5 con nombre "ID", conteniendo el JSON (internamente como dataframe) y asignando valores de los
-                   atributos)
-                       casoEjemplo_01 = zsan_DirB(ID=None, pathDirectorio=None, diccionarioConEl_JSON, diccionarioAtributos)
-                    # pathDirectorio si None = directorio en Curso
-      b) Carga desde fichero: en la cual con llamar con un ID (el path de un fichero hdf5 ya creado) # tb puede incluirse pathDirectorio
-                   ejemplo de llamada para este caso:
-                       casoEjemplo_02 = zsanClaseCaso(directorio=None, ID='nombreDelficheroSINEXTENSION_HDF5', diccionarioConEl_JSON_IN=None, diccionarioAtributos=None)
+            N
+                JSON_OUT_N
 
-      ¿pq de este comportamiento?
-         A) No hay polimorfismo en __init__ de python
-         B) Versión punto CERO de este código                   
-     
-    Parameters
-    __________
-    
-    ID: string
-        un string que el un uID del escenario. Uso para trabajar con DIR-B ya creados
-    directorio: string
-        el path path donde queremos que el fichero que se genere/desde el que se lea (si None=directorio actual)
-    diccionarioConEl_JSON_IN: unJSON tal como sería generando en un programa standard Python ¡¡un diccionario!!. Info precisa para
-        "resolver el caso" con posterioridad
-    diccionarioAtributos: dict
-        un diccionario que contiene la info con la que queremos catalogar el caso.
- 
+    La '/' representa la raíz del fichero. El campo CASO contiene un conjunto de metadatos y un fichero JSON con los parámetros generales que definin el caso.
+
+    Cada solución se guarda por defecto con un número, que, de la misma manera, contiene un conjunto de metadatos y un fichero JSON con los valores resultantes. Todos estos valores son no estructurados. En otras palabras, pueden tener un nombre y un tipo arbitrario, definidos por el usuario en función de sus propias necesidades. La cantidad de valores de salida también es arbitraria.
     """
 
     def __init__(self):
@@ -341,10 +323,11 @@ class zsan_DirB:
         esperarDesbloqueoDeHDF5(self.fullPath)  # Criterio de finalización de proceso: se puede bloquear fichero
         return salida      
       
-    def recuperaSolucionComoDiccionario(self, numeroDeSolucion: int):
+    def recuperaSolucionComoDiccionario(self, numeroDeSolucion: int) -> Dict:
         """ Recupera un numero de solucion como diccionario Python (built-in Dict)
 
         :param int numeroDeSolucion: identificador de la solución a recuperar
+        :returns Dict:
         """
         
         numeroDeSolucion = str(numeroDeSolucion)
