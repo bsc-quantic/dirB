@@ -7,7 +7,6 @@ def esperarDesbloqueoDeHDF5(pathDelFichero: str, numIntentosMaximo: int = 120, s
     :param str pathDelFichero: path completo del fichero HDF5 a esperar
     :param int numIntentosMaximo: número máximo de intentos a la hora de probar si el fichero sigue bloqueado
     :param int segundosDeSleep: tiempo en segundos entre intentos.
-
     """
 
     numeroDeIntentos = 0
