@@ -24,8 +24,8 @@ dirB.base module
 
    .. automethod:: recuperaCasoComoDiccionario
    .. automethod:: recuperaSolucionComoDiccionario
-   .. automethod:: representaAtributosDeTodasLasSoluciones
    .. automethod:: representaAtributosDelCaso
+   .. automethod:: representaAtributosDeTodasLasSoluciones
 
    Métodos para el postprocesado
    -----------------------------

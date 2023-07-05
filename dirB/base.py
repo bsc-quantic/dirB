@@ -148,13 +148,13 @@ class zsan_DirB:
     def numeroSoluciones(self, new_numeroSoluciones: str):
         self._numeroSoluciones = new_numeroSoluciones
 
-    def creaNuevoCaso(self, diccionarioConEl_JSON_IN: Dict, diccionarioAtributos: Dict = None, 
+    def creaNuevoCaso(self, diccionarioDeParamsInput: Dict, diccionarioDeMetadatos: Dict = None, 
                       directorio: str = os.getcwd(), 
                       nombreDeFichero: str = str(datetime.now().strftime("%Y-%m-%dT%H.%M.%S")) + '_' + str(uuid.uuid4()) + '.hdf5'):
-        """Crea un nuevo caso teniendo en cuenta el dataset principal y los metadatos
+        """Crea un nuevo caso teniendo en cuenta el dataset principal y los metadatos proporcionados.
 
-        :param Dict diccionarioConEl_JSON_IN: dataset principal en formato JSON. Contiene los parámetros de entrada del caso.
-        :param Dict diccionarioAtributos: diccionario con los metadatos del caso.
+        :param Dict diccionarioDeParamsInput: dataset principal en formato JSON. Contiene los parámetros de entrada del caso.
+        :param Dict diccionarioDeMetadatos: diccionario con los metadatos del caso.
         :param str directorio: directorio donde se creará el caso.
         :param str nombreDeFichero: nombre del fichero HDF5 que se utilizará.
         """
@@ -166,12 +166,12 @@ class zsan_DirB:
         with h5py.File(fullPath, 'w') as f:
             caso = f.create_group('CASO')
             
-            dataType = h5py.string_dtype(encoding='utf-8')
-            info = json.dumps(diccionarioConEl_JSON_IN, ensure_ascii=False)
-            caso.create_dataset('JSON_IN', data=info, dtype=dataType)
+            caso.create_dataset('JSON_IN',
+                                data=json.dumps(diccionarioDeParamsInput, ensure_ascii=False), 
+                                dtype=h5py.string_dtype(encoding='utf-8'))
 
-            if diccionarioAtributos:
-                for key, value in diccionarioAtributos.items():
+            if diccionarioDeMetadatos:
+                for key, value in diccionarioDeMetadatos.items():
                     caso.attrs[key] = value
                     
         esperarDesbloqueoDeHDF5(fullPath,segundosDeSleep=0.1)
@@ -179,7 +179,7 @@ class zsan_DirB:
         self._actualizaMiembros(nombreDeFichero, fullPath, directorio)
     
     def cargaCaso(self, nombreDeFichero: str, directorio: str = os.getcwd()):
-        """Carga un caso identificado con idCaso
+        """Carga un caso identificado por su nombre de fichero.
         
         :param str nombreDeFichero: nombre del fichero con el caso a cargar (identificador).
         :param str directorio: directorio desde donde se cargará el caso.
@@ -209,25 +209,25 @@ class zsan_DirB:
         self.numeroSoluciones = len(self.listaSoluciones)
 
     def _getDiccionariosDeAtributos(self, nombreDelFichero: str) -> Tuple[Dict, Dict]:
-        """Lee estructura de un fichero DIR-B y consigue los diccionarios de atributos del CASO y de las SOLUCIONES.
+        """Lee estructura de un fichero dirB y consigue los diccionarios de metadatos del caso y de las SOLUCIONES.
 
         :param str nombreDelFichero: fichero a leer.
         """
 
         with h5py.File(nombreDelFichero, 'r') as f:
-           dicAtrCaso = {}
-           dicAtrCaso = {key: value for key, value in f['/CASO'].attrs.items() }
-           
-           # Podría ser que no existieran SOLUCIONES por se un DIR-B recién creado.
-           try: 
-              listaDeSoluciones = list(f['/SOLUCIONES'])
-           except:
-             listaDeSoluciones = []
-             
-           dicAtrSoluciones = {}    
-           for numSolucion in listaDeSoluciones:
-              cadenaPathSolEnCurso = '/SOLUCIONES/' + numSolucion
-              dicAtrSoluciones[numSolucion] = {key: value for key, value in f[cadenaPathSolEnCurso].attrs.items() }
+            dicAtrCaso = {}
+            dicAtrCaso = {key: value for key, value in f['/CASO'].attrs.items() }
+
+            # Podría ser que no existieran SOLUCIONES por se un DIR-B recién creado.
+            try: 
+                listaDeSoluciones = list(f['/SOLUCIONES'])
+            except:
+                listaDeSoluciones = []
+                
+            dicAtrSoluciones = {}    
+            for numSolucion in listaDeSoluciones:
+                cadenaPathSolEnCurso = '/SOLUCIONES/' + numSolucion
+                dicAtrSoluciones[numSolucion] = { key: value for key, value in f[cadenaPathSolEnCurso].attrs.items() }
               
         esperarDesbloqueoDeHDF5(nombreDelFichero)
         
@@ -236,7 +236,7 @@ class zsan_DirB:
     def _getDataFrameResumenAtributosCaso(self, diccionarioAttrs: Dict) -> pd.Series:
         """Devuelve un dataframe (objecto pandas.Series) con atributos del Caso.
 
-        : param Dict diccionarioAttrs: diccionario a partir del cual se genera el dataframe de salida
+        :param Dict diccionarioAttrs: diccionario a partir del cual se genera el dataframe de salida
         """
 
         if len(diccionarioAttrs) != 0:
@@ -247,18 +247,18 @@ class zsan_DirB:
     def _getDataFrameResumenAtributosSoluciones(self, dicAtrSoluciones: Dict):
         """Devuelve un dataframe resumen de todos los atributos de todas las soluciones (ver comentarios) a partir de diccionario atributos soluciones
         """
-        # Podrian no existir el diccinario de Atributos de soluciones, por no existir aún soluciones en le fichero o
-        # pq ninguna de las solcuiones incluidas, incluyan metadatos
+
         if not(dicAtrSoluciones):
             return pd.DataFrame()  # Un dataFrame vacio
             
         aux = [(caso, dicAtributosAux) for caso, dicAtributosAux in dicAtrSoluciones.items()]
         listaDeClaves = ['SOLUCION  '+str(e[0]) for e in aux]
-        listaDeDiccionarios = [e[1] for e in aux]                
+        listaDeDiccionarios = [e[1] for e in aux]
+
         return pd.DataFrame.from_records(listaDeDiccionarios, index=listaDeClaves)
     
     def guardaNuevaSolucion(self, diccionarioConEl_JSON_OUT: Dict, diccionarioAtributos: Dict = None):
-        """Guarda una nueva solución en el DIR-B.
+        """Guarda una nueva solución en el dirB.
 
         :param Dict diccionarioConEl_JSON_OUT: dataset principal en formato JSON. Contiene los parámetros de entrada del caso.
         :param Dict diccionarioAtributos: diccionario con los metadatos del caso.
@@ -266,23 +266,25 @@ class zsan_DirB:
 
         with h5py.File(self.fullPath, 'a') as f:
             if self.numeroSoluciones == 0:
-                f.create_group('/SOLUCIONES')                    
+                f.create_group('/SOLUCIONES')   
+
             cadena = '/SOLUCIONES/' + str(self.numeroSoluciones + 1)
-            f.create_group(cadena)        
-            dataType = h5py.string_dtype(encoding='utf-8')
-            info = json.dumps(diccionarioConEl_JSON_OUT, ensure_ascii=False)
-            f[cadena].create_dataset('JSON_OUT', data=info, dtype=dataType)                       
-            # Los atributos se guardan "valor a valor", en caso de haber sido pasados
+            f.create_group(cadena)
+
+            f[cadena].create_dataset('JSON_OUT', 
+                                     data=json.dumps(diccionarioConEl_JSON_OUT, ensure_ascii=False),
+                                     dtype=h5py.string_dtype(encoding='utf-8'))
+
             if diccionarioAtributos:
                 for key, value in diccionarioAtributos.items():
-                   f[cadena].attrs[key] = value
+                    f[cadena].attrs[key] = value
                
         esperarDesbloqueoDeHDF5(self.fullPath)
         
         self._actualizaMiembrosDerivados()
 
     def guardaNuevasSoluciones(self, listaDeSoluciones: List[Dict], listaDeAtributosDeSoluciones: List[Dict]):
-        """ Guarda las nuevas soluciones pasadas por parámetro en el actual dirB.
+        """Guarda las nuevas soluciones pasadas por parámetro en el actual dirB.
 
         :param List[Dict] listaDeSoluciones: lista con los diccionarios que representan las soluciones a guardar.
         :param List[Dict] listaDeAtributosDeSoluciones: lista de los atributos de las soluciones a guardar.
@@ -312,21 +314,19 @@ class zsan_DirB:
                 idSolucion += 1
 
     def recuperaCasoComoDiccionario(self):
-        """ Recupera el caso como diccionario === NO COMO JSON. Dicicionario objeto natural PYTHON
+        """Recupera el caso como diccionario (built-in dictionary en Python).
         """
 
         with h5py.File(self.fullPath, 'r') as f:
-            aux1 = f['/CASO/JSON_IN'][()]
-            aux2 = aux1.decode("utf-8")
-            salida = json.loads(aux2)
+            salida = json.loads(f['/CASO/JSON_IN'][()].decode("utf-8"))
            
-        esperarDesbloqueoDeHDF5(self.fullPath)  # Criterio de finalización de proceso: se puede bloquear fichero
+        esperarDesbloqueoDeHDF5(self.fullPath)
         return salida      
       
     def recuperaSolucionComoDiccionario(self, numeroDeSolucion: int) -> Dict:
-        """ Recupera un numero de solucion como diccionario Python (built-in Dict)
+        """Recupera un numero de solucion como diccionario Python (built-in Dict).
 
-        :param int numeroDeSolucion: identificador de la solución a recuperar
+        :param int numeroDeSolucion: identificador de la solución a recuperar.
         :returns Dict:
         """
         
@@ -336,15 +336,32 @@ class zsan_DirB:
         
         with h5py.File(self.fullPath, 'r') as f:
             cadena = '/SOLUCIONES/' + numeroDeSolucion + '/JSON_OUT'
-            aux1 = f[cadena][()]
-            aux2 = aux1.decode("utf-8")
-            salida = json.loads(aux2)
+
+            salida = json.loads(f[cadena][()].decode("utf-8"))
          
         esperarDesbloqueoDeHDF5(self.fullPath)  # Criterio de finalización de proceso: se puede bloquear fichero 
+
         return salida
-    
+
+    def representaAtributosDelCaso(self):
+        """Muestra metadatos del caso.
+        """
+
+        cadena = '\n ===>  Descripción DIR-B ' + self.nombreDeFichero
+        cadena += '\n'
+        if self.dicAtrCaso: 
+            cadena += '\n **** Atributos del CASO incluido en el DIR-B  ****** '
+            cadena += '\n'
+            cadena += self.dataFrameAtributosCaso.to_string()
+        else:
+            cadena += '\n **** En el CASO no han sido cargados atributos  ****** \n'
+            
+        cadena += '\n'
+
+        print(cadena)
+
     def representaAtributosDeTodasLasSoluciones(self):
-        """ Muestra atributos de todos las SOLUCIONES forma bonita. Recordar que print(a) muestra todo detalle
+        """Muestra los metadatos de todas las soluciones.
         """
       
         if len(self.dicAtrSoluciones) == 0:
@@ -352,99 +369,84 @@ class zsan_DirB:
         else:
             for solucion, dicAtri in self.dicAtrSoluciones.items():
                 print('SOLUCION ', solucion)
+
                 if not dicAtri:
                     print('   **** SIN ATRIBUTOS ****' )
                 else:
                     for atributo, valor in dicAtri.items():
                         print('   ', atributo, ' ===> ', valor)
-
-    def representaAtributosDelCaso(self):
-        """ Muestra atributos del caso en forma bonita.  Recordar que print(a) muestra todo detalle
-        """
-        cadena = '\n ===>  Descripción DIR-B ' + self.nombreDeFichero
-        cadena += '\n'
-        if self.dicAtrCaso: 
-            cadena += '\n **** Atributos del CASO incluido en el DIR-B  ****** '
-            cadena += '\n'
-            aux = self.dataFrameAtributosCaso.to_string()
-            cadena += aux
-        else:
-            cadena += '\n **** En el CASO no han sido cargados atributos  ****** \n'
-        cadena += '\n'
-        print(cadena)
                 
-    def listaSolucionesQueTienenDeterminadoAtributo(self, literalDeUnAtributo: int | str):
-        """ Admite el literal de un atributo y muestra las soluciones que tienen dicho atributo
+    def listaSolucionesQueTienenDeterminadoAtributo(self, campo: int | str) -> List:
+        """Devuelve todas las soluciones que tengan el campo proporcionado entre sus metadatos.
 
-        :param int | str literalDeUnAtributo: nombre del atributo del que se quieren conseguir los valores
+        :param int | str campo: nombre del atributo del que se quieren conseguir los valores.
         """
 
         lista = []
         for solucion, dicAtri in self.dicAtrSoluciones.items():
             for atributo, valor in dicAtri.items():
-                if atributo == literalDeUnAtributo:
-                    lista.append((solucion, 'SOLUCION '+str(solucion), valor))
+                if atributo == campo:
+                    lista.append((str(solucion), 'SOLUCION ' + str(solucion), "Valor = " + str(valor)))
+
         return lista
     
-    
-    def listaSolucionesQue_NO_TienenDeterminadoAtributo(self, literalDeUnAtributo: int | str):
-        """ Admite el literal de un atributo y muestra las soluciones que NO tienen dicho atributo
+    def listaSolucionesQue_NO_TienenDeterminadoAtributo(self, campo: int | str) -> List:
+        """Devuelve todas las soluciones que NO tengan el campo proporcionado entre sus metadatos.
 
-        :param int | str literalDeUnAtributo: nombre del atributo del que NO se quieren conseguir los valores
-
-        TODO fusionar esta función con la anterior con un booleano
+        :param int | str campo: nombre del atributo del que NO se quieren conseguir los valores.
         """
 
         lista = []
         for solucion, dicAtri in self.dicAtrSoluciones.items():
-            if literalDeUnAtributo not in dicAtri.keys():
+            if campo not in dicAtri.keys():
                 lista.append(solucion)
+
         return lista    
     
-    def atributosDeUnaSolucion(self, unNumeroDeSolucion: int | str):
-        """ Autoexplicado. Devuelve diccionario si el numero de solución existe
+    def atributosDeUnaSolucion(self, unNumeroDeSolucion: int | str) -> Dict:
+        """Devuelve todos los metadatos para la solución indicada.
 
-        :param int | str unNumeroDeSolucion: identificador de la solución  a considerar
+        :param int | str unNumeroDeSolucion: identificador de la solución  a considerar.
         """
 
         unNumeroDeSolucion = str(unNumeroDeSolucion)
-        salida = self.dicAtrSoluciones.get(unNumeroDeSolucion)
-        return salida
+
+        return self.dicAtrSoluciones.get(unNumeroDeSolucion)
         
-    def siUnaSolucionTieneUnAtributo(self, unNumeroDeSolucion: int | str, literalDeUnAtributo: int | str):
-        """ Autoexplicado
+    def siUnaSolucionTieneUnAtributo(self, unNumeroDeSolucion: int | str, campo: int | str) -> bool:
+        """Devuelve si la solución indicada contiene el campo proporcionado entre sus metadatos.
 
-        :param int | str unNumeroDeSolucion: identificador de la solución a considerar
-        :param int | str literalDeUnAtributo: nombre del atributo a considerar
+        :param int | str unNumeroDeSolucion: identificador de la solución a considerar.
+        :param int | str campo: nombre del atributo a considerar
         """
-        unNumeroDeSolucion = str(unNumeroDeSolucion)  # Por si acaso...
-        print(self.dicAtrSoluciones[unNumeroDeSolucion].keys())
-        loTiene = literalDeUnAtributo in self.dicAtrSoluciones[unNumeroDeSolucion].keys()
-        return loTiene
-      
+
+        return campo in self.dicAtrSoluciones[str(unNumeroDeSolucion)].keys()
     
-    def solucionesQueTienenUnValorEntreSusAtributos(self, unLiteral):
-        """ Mejor con ejemeplo: unID.solucionesQueTienenUnValorEntreSusAtributos('RC01334') devuelve lista de tuplas (solucion, nombreAtributoQueTieneEseLiteral)
-
-            :param int | str unLiteral: ----
+    def solucionesQueTienenUnValorEntreSusAtributos(self, valor: int | str) -> List:
+        """De entre todas las soluciones, devuelve una lista de los campos que contienen el valor indicado.
+            
+        :param int | str valor: valor a buscar entre los metadatos de todas sus soluciones.
         """
+        
         salida = []
         for solucion, dicAtri in self.dicAtrSoluciones.items():
-            for atributo, valor in dicAtri.items():
-                if valor == unLiteral:
-                    salida.append((solucion, 'SOLUCION '+str(solucion),  atributo))
+            for attribute, value in dicAtri.items():
+                if valor == value:
+                    salida.append((str(solucion), 'SOLUCION ' + str(solucion), "Atributo = " + str(attribute)))
+
         return salida
     
-    
-    def solucionesQueTieneUnAtributoEnUnaListaPosiblesValores(self, unLiteralAtributo, listaValores):
-        """ Lo que le nombre dice devuelve lista de tuplas (solucion,  valordelAtributo)
-            :param unLiteralAtributo: ----
-            :param listaValores: ----
+    def solucionesQueTieneUnAtributoEnUnaListaPosiblesValores(self, campo: str | int, listaDeValores: List[str]) -> List:
+        """De entre todas las soluciones, devuelve las soluciones que contengan el campo especificado entre sus metadatos y cuyo valor esté entre la lista de valores.
+            
+        :param str | int campo: nombre del campo a buscar en los metadatos de las soluciones.
+        :param List[str]: listaDeValores: lista de valores posibles que puede tener el campo.
         """
 
         salida = []
         for solucion, dicAtri in self.dicAtrSoluciones.items():
             for atributo, valor in dicAtri.items():
-                if atributo == unLiteralAtributo and  valor in listaValores:
-                    salida.append((solucion, 'SOLUCION '+str(solucion),  valor))
+                if atributo == campo and valor in listaDeValores:
+                    salida.append((str(solucion), 'SOLUCION ' + str(solucion), "Valor = " + str(valor)))
+
         return salida 
