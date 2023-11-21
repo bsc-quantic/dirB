@@ -1,7 +1,7 @@
 import time
 import h5py
 
-def esperarDesbloqueoDeHDF5(pathDelFichero: str, numIntentosMaximo: int = 120, segundosDeSleep: int = 1):
+def esperarDesbloqueoDeHDF5(pathDelFichero: str, numIntentosMaximo: int = 120, segundosDeSleep: int = 0.1):
     """Medida de sanidad en moficación de HDF5: Verificar que HDF5 está desbloqueado.
 
     :param str pathDelFichero: path completo del fichero HDF5 a esperar
