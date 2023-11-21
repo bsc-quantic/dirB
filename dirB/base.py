@@ -174,7 +174,7 @@ class zsan_DirB:
                 for key, value in diccionarioDeMetadatos.items():
                     caso.attrs[key] = value
                     
-        esperarDesbloqueoDeHDF5(fullPath,segundosDeSleep=0.1)
+        esperarDesbloqueoDeHDF5(fullPath)
 
         self._actualizaMiembros(nombreDeFichero, fullPath, directorio)
     
@@ -339,7 +339,7 @@ class zsan_DirB:
 
             salida = json.loads(f[cadena][()].decode("utf-8"))
          
-        esperarDesbloqueoDeHDF5(self.fullPath)  # Criterio de finalización de proceso: se puede bloquear fichero 
+        esperarDesbloqueoDeHDF5(self.fullPath) 
 
         return salida
 
