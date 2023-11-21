@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dirB"
+version = "0.1"
+authors = [
+  { name="Santiago Fernández Prieto", email="sfernandezp@repsol.com" },
+  { name="German Navarro", email="ge.najim@gmail.com" },
+]
+dynamic = ["dependencies"]
+description = "An I/O HDF5-based utility to assist in the distribution, execution and integration of data coming from different sources (e.g. results of mathematical optimization models)."
+readme = "README.md"
+license = { file="LICENSE" }
+requires-python = ">=3.10.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Topic :: System :: Archiving :: Mirroring"
+]
+
+[tool.setuptools]
+packages = ["dirB"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[project.urls]
+"Homepage" = "https://github.com/bsc-quantic/dirB"
+
+[tool.black]
+line-length = 1000
