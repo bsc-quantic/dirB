@@ -88,3 +88,9 @@ With the following command we'll get a clean documentation env to regenerate the
 make clean html
 make html
 ```
+
+## Acknowledgements
+
+© Copyright 2023, Santiago Fernández Prieto & Germán Navarro. 
+
+Developed within the framework of the [project CUCO](https://www.cuco.tech/). Financed by the [CDTI](https://www.cdti.es/en) and with the support of the [Spanish Ministry of Science and Innovation](https://www.ciencia.gob.es/en/) under the [Recovery, Transformation and Resilience Plan (RTRP)](https://www.ciencia.gob.es/en/Estrategias-y-Planes/Plan-de-Recuperacion-Transformacion-y-Resiliencia-PRTR.html).
