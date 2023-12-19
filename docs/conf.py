@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.abspath('..'))
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'DirB'
-copyright = '2023, Santiago Fernández Prieto & Germán Navarro. Developed within the framework of the project CUCO (<https://www.cuco.tech/). Financed by the CDTI and with the support of the Spanish Ministry of Science and Innovation under the Recovery, Transformation and Resilience Plan (RTRP)'
+copyright = '2023, Santiago Fernández Prieto & Germán Navarro'
 author = 'Santiago Fernández Prieto & Germán Navarro'
 release = '0.1'
 
