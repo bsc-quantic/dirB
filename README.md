@@ -73,11 +73,13 @@ Complete example notebooks have been added to this repository.
 
 ## Documentation
 
-To generate the documentation, you should install sphinx and the proper theme plugin, and then run the make command for the HTML creation:
+[Here is the official documentation](https://dirb.readthedocs.io/en/latest/). For any modification you'd like to do it, it can be generated locally. In order to do this, we recommend to create a brand new environment for sphinx, in which you will install the proper dependencies by means of `pip install docs/{requirements_file}`:
+ - docs/requirements.in: contains the base dependencies
+ - docs/requirements.txt: contains the base dependencies plus the whole bunch of subdependencies recursively gotten for complete reproducibility
+
+Then, you should run the `make` command for the HTML creation:
 
 ```
-pip install sphinx sphinx_rtd_theme
-
 cd docs
 make html
 ```
