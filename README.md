@@ -93,10 +93,12 @@ make html
 
 ## Acknowledgements
 
-© Copyright 2023, Santiago Fernández Prieto $^ \dagger$, Ricardo Enríquez Miranda $^ \dagger$, Javier Hernanz Zájara $^ \dagger$, Germán Navarro $^ \ddagger$
+© Copyright 2023, Germán Navarro $^\dagger$, Santiago Fernández Prieto $^{\ddagger,1}$, Ricardo Enríquez Miranda $^\ddagger$, Javier Hernanz Zájara $^\ddagger$
 
-$^ \dagger$ Repsol Quantum Advisory Team
+$^\dagger$ Barcelona Supercomputing Center
 \
-$^ \ddagger$ Barcelona Supercomputer Center
+$^\ddagger$ Repsol Quantum Advisory Team
+
+$^1$ Repsol-BSC Research Center
 
 Developed within the framework of the [project CUCO](https://www.cuco.tech/). Financed by the [CDTI](https://www.cdti.es/en) and with the support of the [Spanish Ministry of Science and Innovation](https://www.ciencia.gob.es/en/) under the [Recovery, Transformation and Resilience Plan (RTRP)](https://www.ciencia.gob.es/en/Estrategias-y-Planes/Plan-de-Recuperacion-Transformacion-y-Resiliencia-PRTR.html).
