@@ -26,7 +26,7 @@ import shutil
 diccionarioCasoBase = { 'x': 12,
                         'y': 7}
 diccionarioAtributosCasoBase = {
-                        'Autor': 'RC01334',
+                        'Autor': 'Steve Vai',
                         'Dia':  str(date.today()),
                         'Escenario': 'Acido',
                         'Numero Caso': 23
@@ -46,7 +46,7 @@ diccionarioSolucionCaso_1 = {'ex1': 'xxx',
                              'ex2': 'yyy',
                              'ex3': 'zzz'}
 diccionarioAtributosSolucionCaso_1 = {
-                            'Autor': 'BSC0123',
+                            'Autor': 'Michel Gondry',
                             'Dia':  str(datetime.now()),
                             'Escenario': 'Amargo',
                             }
