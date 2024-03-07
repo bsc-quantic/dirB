@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "dirB"
-version = "0.2.2"
+version = "0.2.3"
 authors = [
   { name="Santiago Fernández Prieto", email="mail.santiagofernandezprieto@gmail.com" },
   { name="German Navarro", email="ge.najim@gmail.com" },
