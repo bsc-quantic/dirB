@@ -389,6 +389,10 @@ class zsan_DirB:
                         f[pathDeSolucion].attrs[key] = value
 
                 idSolucion += 1
+        
+        esperarDesbloqueoDeHDF5(self.fullPath)
+        
+        self._actualizaMiembrosDerivados()
 
     def recuperaCasoComoDiccionario(self):
         """Recupera el caso como diccionario (built-in dictionary en Python).
