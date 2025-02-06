@@ -7,6 +7,11 @@ import pathlib
 from datetime import datetime
 from typing import Dict, List, Tuple
 
+import base64
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
 from dirB.utils import esperarDesbloqueoDeHDF5
 
 
@@ -31,24 +36,46 @@ class zsan_DirB:
     Cada solución se guarda por defecto con un número, que, de la misma manera, contiene un conjunto de metadatos y un fichero JSON con los valores resultantes. Todos estos valores son no estructurados. En otras palabras, pueden tener un nombre y un tipo arbitrario, definidos por el usuario en función de sus propias necesidades. La cantidad de valores de salida también es arbitraria.
     """
 
-    def __init__(self):
+    def __init__(self, password: str = None):
         self._nombreDeFichero: str = None
         self._fullPath: str = None
         self._directorio: str = None
 
         self._dicAtrCaso: Dict = None
+        self._dicParamsCaso: Dict = None
         self._dicAtrSoluciones: Dict = None
         
         self._dataFrameAtributosCaso = None
+        self._dataFrameParamsCaso = None
         self._dataFrameAtributosSoluciones = None
 
         self._listaSoluciones: List = None
         self._numeroSoluciones: int = None
-    
+
+        self.__fernet = None
+        if password:
+            print("Todos los datos leídos/escritos con esta instancia se encriptarán con la clave proporcionada.")
+
+            __password_byte = password.encode('utf-8')
+            __salt = os.urandom(16)
+
+            __kdf = PBKDF2HMAC(algorithm = hashes.SHA256(), length = 32, salt = __salt, iterations = 1000000)
+            __key = base64.urlsafe_b64encode(__kdf.derive(__password_byte))
+            self.__fernet = Fernet(__key)
+
     def __repr__(self):
         """ Resumen del DIR-B  mostrando el atributo de la clase dataFrameAtributos. Se llama con print(unDIR-B)
         """
         cadena = '\n ===>  Descripción DIR-B ' + self.nombreDeFichero
+        cadena += '\n'
+
+        if self.dicParamsCaso:
+            cadena += '\n **** Parámetros del CASO incluido en el DIR-B  ****** '
+            cadena += '\n'
+            aux = self.dataFrameParamsCaso.to_string()
+            cadena += aux
+        else:
+            cadena += '\n **** En el CASO no han sido cargados parámetros  ****** \n'
         cadena += '\n'
 
         if self.dicAtrCaso: 
@@ -93,12 +120,20 @@ class zsan_DirB:
         return self._dicAtrCaso
     
     @property
+    def dicParamsCaso(self):
+        return self._dicParamsCaso
+    
+    @property
     def dicAtrSoluciones(self):
         return self._dicAtrSoluciones
     
     @property
     def dataFrameAtributosCaso(self):
         return self._dataFrameAtributosCaso
+
+    @property
+    def dataFrameParamsCaso(self):
+        return self._dataFrameParamsCaso
 
     @property
     def dataFrameAtributosSoluciones(self):
@@ -128,6 +163,10 @@ class zsan_DirB:
     def dicAtrCaso(self, new_dicAtrCaso: str):
         self._dicAtrCaso = new_dicAtrCaso
     
+    @dicParamsCaso.setter
+    def dicParamsCaso(self, new_dicParamsCaso: str):
+        self._dicParamsCaso = new_dicParamsCaso
+
     @dicAtrSoluciones.setter
     def dicAtrSoluciones(self, new_dicAtrSoluciones: str):
         self._dicAtrSoluciones = new_dicAtrSoluciones
@@ -135,6 +174,10 @@ class zsan_DirB:
     @dataFrameAtributosCaso.setter
     def dataFrameAtributosCaso(self, new_dataFrameAtributosCaso: str):
         self._dataFrameAtributosCaso = new_dataFrameAtributosCaso
+
+    @dataFrameParamsCaso.setter
+    def dataFrameParamsCaso(self, new_dataFrameParamsCaso: str):
+        self._dataFrameParamsCaso = new_dataFrameParamsCaso
 
     @dataFrameAtributosSoluciones.setter
     def dataFrameAtributosSoluciones(self, new_dataFrameAtributosSoluciones: str):
@@ -148,7 +191,7 @@ class zsan_DirB:
     def numeroSoluciones(self, new_numeroSoluciones: str):
         self._numeroSoluciones = new_numeroSoluciones
 
-    def creaNuevoCaso(self, diccionarioDeParamsInput: Dict, diccionarioDeMetadatos: Dict = None, 
+    def creaNuevoCaso(self, diccionarioDeParamsInput: Dict[str, str], diccionarioDeMetadatos: Dict = None, 
                       directorio: str = os.getcwd(), 
                       nombreDeFichero: str = str(datetime.now().strftime("%Y-%m-%dT%H.%M.%S")) + '_' + str(uuid.uuid4()) + '.hdf5'):
         """Crea un nuevo caso teniendo en cuenta el dataset principal y los metadatos proporcionados.
@@ -161,13 +204,22 @@ class zsan_DirB:
 
         if pathlib.Path(nombreDeFichero).suffix != ".hdf5":
             raise ValueError("El fichero " +  nombreDeFichero + " no tiene extensión HDF5.")
-        
+
+        diccionarioDeParamsInput_procesado: Dict[str, str] = {"encrypted" : "0"}
+        if self.__fernet:
+            diccionarioDeParamsInput_procesado["encrypted"] = "1"
+            for key, value in diccionarioDeParamsInput.items():
+                key_encrypted = self.__fernet.encrypt(str(key).encode('utf-8')).decode('utf-8')
+                val_encrypted = self.__fernet.encrypt(str(value).encode('utf-8')).decode('utf-8')
+
+                diccionarioDeParamsInput_procesado[key_encrypted] = val_encrypted
+
         fullPath = os.path.join(directorio, nombreDeFichero)
         with h5py.File(fullPath, 'w') as f:
             caso = f.create_group('CASO')
             
             caso.create_dataset('JSON_IN',
-                                data=json.dumps(diccionarioDeParamsInput, ensure_ascii=False), 
+                                data=json.dumps(diccionarioDeParamsInput_procesado if self.__fernet else diccionarioDeParamsInput, ensure_ascii=False), 
                                 dtype=h5py.string_dtype(encoding='utf-8'))
 
             if diccionarioDeMetadatos:
@@ -178,6 +230,18 @@ class zsan_DirB:
 
         self._actualizaMiembros(nombreDeFichero, fullPath, directorio)
     
+    def decrypt(self, nombreDeFichero: str):
+        """
+        Desencripta el fichero abierto en memoria y lo guarda en un nuevo fichero, en el caso de que se haya proporcionado una clave previamente.
+
+        :nombreDeFichero: path del fichero nuevo donde se guardará el dirB abierto por esta instanci, pero desencriptado.
+        """
+        if not self.__fernet:
+            print("Clave no proporcionada en esta instancia.")
+            return None
+        
+
+
     def cargaCaso(self, nombreDeFichero: str, directorio: str = os.getcwd()):
         """Carga un caso identificado por su nombre de fichero.
         
@@ -191,6 +255,12 @@ class zsan_DirB:
             raise ValueError('El fichero ' + fullPath + ' no existe.')
         
         self._actualizaMiembros(nombreDeFichero, fullPath, directorio)
+
+        if self.dicParamsCaso["encrypted"]:
+            if not self.__fernet:
+                print("El fichero " + nombreDeFichero + " contiene campos encriptados pero ninguna clave fue proporcionada para los mismos.")
+            else:
+                pass
     
     def _actualizaMiembros(self, nombreDeFichero: str, fullPath: str, directorio: str = os.getcwd()):
         self.nombreDeFichero = nombreDeFichero        
@@ -200,15 +270,15 @@ class zsan_DirB:
         self._actualizaMiembrosDerivados()
 
     def _actualizaMiembrosDerivados(self):
-        self.dicAtrCaso, self.dicAtrSoluciones = self._getDiccionariosDeAtributos(self.fullPath)
+        self.dicAtrCaso, self.dicParamsCaso, self.dicAtrSoluciones = self._getDiccionariosDeAtributos(self.fullPath)
 
-        self.dataFrameAtributosCaso = self._getDataFrameResumenAtributosCaso(self.dicAtrCaso)
+        self.dataFrameParamsCaso, self.dataFrameAtributosCaso = self._getDataFrameResumenAtributosCaso(self.dicParamsCaso, self.dicAtrCaso)
         self.dataFrameAtributosSoluciones = self._getDataFrameResumenAtributosSoluciones(self.dicAtrSoluciones)        
         
         self.listaSoluciones = list(self.dicAtrSoluciones.keys())
         self.numeroSoluciones = len(self.listaSoluciones)
 
-    def _getDiccionariosDeAtributos(self, nombreDelFichero: str) -> Tuple[Dict, Dict]:
+    def _getDiccionariosDeAtributos(self, nombreDelFichero: str) -> Tuple[Dict, Dict, Dict]:
         """Lee estructura de un fichero dirB y consigue los diccionarios de metadatos del caso y de las SOLUCIONES.
 
         :param str nombreDelFichero: fichero a leer.
@@ -217,6 +287,9 @@ class zsan_DirB:
         with h5py.File(nombreDelFichero, 'r') as f:
             dicAtrCaso = {}
             dicAtrCaso = {key: value for key, value in f['/CASO'].attrs.items() }
+
+            dicParamsCaso = {}
+            dicParamsCaso = {key: value for key, value in json.loads(f['/CASO/JSON_IN'][()].decode('utf-8')).items() }
 
             # Podría ser que no existieran SOLUCIONES por se un DIR-B recién creado.
             try: 
@@ -231,18 +304,22 @@ class zsan_DirB:
               
         esperarDesbloqueoDeHDF5(nombreDelFichero)
         
-        return dicAtrCaso, dicAtrSoluciones
+        return dicAtrCaso, dicParamsCaso, dicAtrSoluciones
     
-    def _getDataFrameResumenAtributosCaso(self, diccionarioAttrs: Dict) -> pd.Series:
+    def _getDataFrameResumenAtributosCaso(self, diccionarioParams: Dict, diccionarioAttrs: Dict) -> Tuple[pd.Series, pd.Series]:
         """Devuelve un dataframe (objecto pandas.Series) con atributos del Caso.
 
         :param Dict diccionarioAttrs: diccionario a partir del cual se genera el dataframe de salida
         """
 
+        dicParamsPDSeries = pd.Series(dtype=int)
+        dicAttrsPDSeries = pd.Series(dtype=int)
+        if len(diccionarioParams) != 0:
+            dicParamsPDSeries = pd.Series(diccionarioParams)
         if len(diccionarioAttrs) != 0:
-          return pd.Series(diccionarioAttrs)
-        else:
-          return pd.Series(dtype=int)  # Esencialmente una serie vacia
+            dicAttrsPDSeries = pd.Series(diccionarioAttrs)
+        
+        return dicParamsPDSeries, dicAttrsPDSeries
 
     def _getDataFrameResumenAtributosSoluciones(self, dicAtrSoluciones: Dict):
         """Devuelve un dataframe resumen de todos los atributos de todas las soluciones (ver comentarios) a partir de diccionario atributos soluciones
