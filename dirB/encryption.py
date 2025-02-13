@@ -15,6 +15,7 @@ class Encryption:
         self.__encriptionEnabled = False
         self.__fernet = None
 
+        self.__passwordProvided = False
         if password:
             print("Todos los datos leídos/escritos con esta instancia se encriptarán con la clave proporcionada.")
 
@@ -51,12 +52,12 @@ class Encryption:
             return {}
 
         if not self.__fernet:
-            print("Clave no proporcionada, encriptación no disponible.")
+            diccionario["encrypted"] = "False"
             return diccionario
 
         diccionario_encrypted = {}
         if incluyeMetadatos:
-            diccionario_encrypted["encrypted"] = "1"
+            diccionario_encrypted["encrypted"] = "True"
             diccionario_encrypted["password"] = self.__encriptaString(self.__password)
 
         for key, value in diccionario.items():
@@ -67,33 +68,37 @@ class Encryption:
 
         return diccionario_encrypted
     
-    def desencriptaDiccionario(self, diccionario: Dict[str, str] = None, compruebaClave: bool = False) -> Tuple[bool, Dict[str, str]]:
-        """
-        Desencripta el diccionario pasado por parámetro con la clave proporcionada al crear la instancia. Si ninguna clave fue 
-        proporcionada, se devuelve el mismo diccionario que se pasó por parámetro.
+    def claveCorrecta(self, diccionario: Dict) -> bool:
+        if "password" not in diccionario:
+            print("El diccionario proporcionado no contiene ningún campo \"password\"")
+            return None
         
-        :param Dict[str, str] diccionario: el diccionario a desencriptar
-        :param bool compruebaClave: si es True, mirará si existe un campo 'key' en el diccionario y si, una vez desencriptada,
-                                    concuerda con la clave que fue proporcionada al crear la instancia.
-        :return Tuple[bool, Dict[str, str]]: el primer campo indica si la clave proporcionada en la instancia es correcta o no.
-                                    El segundo campo es el diccionario dencriptado, o el mismo diccionario si ninguna clave fue 
-                                    proporcionada o si esta es incorrecta.
+        dictPassword = self.__fernet.decrypt(diccionario["password"]).decode('utf-8')
+        if dictPassword == self.__password:
+            return True
+        
+        return False
+
+    def desencriptaDiccionario(self, diccionario: Dict[str, str], soloKeys: bool = False) -> Tuple[bool, Dict[str, str]]:
+        """
+        Desencripta el diccionario pasado por parámetro con la clave proporcionada al crear la instancia. Asume que la clave 
+        que alguna clave fue proporcionada y que además es correcta (no lo comprueba).
+        
+        :param Dict[str, str] diccionario: el diccionario a desencriptar.
+        :param bool soloKeys: si True, tan sólo las claves de los pares <clave, valor> del diccionario retornado estarán 
+                              desencriptadas. Si False, el diccionario completo se retornará desencriptado.
+        :return Dict[str, str]: el diccionario desencriptado.
         """
 
         if not diccionario:
             return {}
-
-        if not self.__fernet:
-            print("Clave no proporcionada, imposible de desencriptar.")
-            return diccionario
         
         dicParamsCaso_decrypted: Dict[str, str] = {"encrypted" : "0"}
         for key, value in self.dicParamsCaso.items():
             if key != "encrypted":
                 key_decrypted = self.__fernet.decrypt(key).decode('utf-8')
                 value_decrypted = self.__fernet.decrypt(value).decode('utf-8')
-                dicParamsCaso_decrypted[key_decrypted] = value_decrypted
+                
+                dicParamsCaso_decrypted[key_decrypted] = value if soloKeys else value_decrypted
 
-                print(key_decrypted + " " + value_decrypted)
-
-        return None
+        return dicParamsCaso_decrypted

@@ -39,10 +39,12 @@ class zsan_DirB:
         self._dicAtrCaso: Dict = None
         self._dicParamsCaso: Dict = None
         self._dicAtrSoluciones: Dict = None
+        self._dictParamsSoluciones: Dict = None
         
         self._dataFrameAtributosCaso = None
         self._dataFrameParamsCaso = None
         self._dataFrameAtributosSoluciones = None
+        self._dataFrameParamsSoluciones = None
 
         self._listaSoluciones: List = None
         self._numeroSoluciones: int = None
@@ -78,7 +80,16 @@ class zsan_DirB:
             cadena += '\n **** Aún no se han cargado soluciones en el DIR-B ****** '
             cadena += ' \n'          
         else:
-            if self.dicAtrSoluciones:      
+            if self.dictParamsSoluciones:
+                cadena += '\n **** Parámetros de soluciones incluidas en el DIR-B ****** '
+                cadena += ' \n'
+                cadena += ' \n'      
+                cadena += str(self.dataFrameParamsSoluciones)
+                cadena += ' \n'
+            else:
+                cadena += '\n **** NO hay PARÁMETROS cargados en las SOLUCIONES el DIR-B  ****** \n'
+            
+            if self.dictParamsSoluciones:
                 cadena += '\n **** Atributos de soluciones incluidas en el DIR-B ****** '
                 cadena += ' \n'
                 cadena += ' \n'      
@@ -86,6 +97,7 @@ class zsan_DirB:
                 cadena += ' \n'
             else:
                 cadena += '\n **** NO hay ATRIBUTOS cargados en las SOLUCIONES el DIR-B  ****** \n'
+
         cadena += '\n'         
         return cadena
     
@@ -114,6 +126,10 @@ class zsan_DirB:
         return self._dicAtrSoluciones
     
     @property
+    def dictParamsSoluciones(self):
+        return self._dictParamsSoluciones
+    
+    @property
     def dataFrameAtributosCaso(self):
         return self._dataFrameAtributosCaso
 
@@ -124,6 +140,10 @@ class zsan_DirB:
     @property
     def dataFrameAtributosSoluciones(self):
         return self._dataFrameAtributosSoluciones
+
+    @property
+    def dataFrameParamsSoluciones(self):
+        return self._dataFrameParamsSoluciones
 
     @property
     def listaSoluciones(self):
@@ -156,6 +176,10 @@ class zsan_DirB:
     @dicAtrSoluciones.setter
     def dicAtrSoluciones(self, new_dicAtrSoluciones: str):
         self._dicAtrSoluciones = new_dicAtrSoluciones
+
+    @dictParamsSoluciones.setter
+    def dictParamsSoluciones(self, new_dictParamsSoluciones: str):
+        self._dictParamsSoluciones = new_dictParamsSoluciones
     
     @dataFrameAtributosCaso.setter
     def dataFrameAtributosCaso(self, new_dataFrameAtributosCaso: str):
@@ -168,6 +192,10 @@ class zsan_DirB:
     @dataFrameAtributosSoluciones.setter
     def dataFrameAtributosSoluciones(self, new_dataFrameAtributosSoluciones: str):
         self._dataFrameAtributosSoluciones = new_dataFrameAtributosSoluciones
+
+    @dataFrameParamsSoluciones.setter
+    def dataFrameParamsSoluciones(self, new_dataFrameParamsSoluciones: str):
+        self._dataFrameParamsSoluciones = new_dataFrameParamsSoluciones
 
     @listaSoluciones.setter
     def listaSoluciones(self, new_listaSoluciones: str):
@@ -194,7 +222,11 @@ class zsan_DirB:
         # Encryption
         if self._encription.claveProporcionada():
             print("Encriptando ficheros...")
-        diccionarioDeParamsInput = self._encription.encriptaDiccionario(diccionarioDeParamsInput, incluyeMetadatos = True)    # Solamente el diccionarioDeParamsInput debe de incluir metadatos sobre la encriptación
+        # else:
+        #     print("Clave no proporcionada, encriptación no disponible.")
+
+        # Call this outside the 'if' statements (needed for encription metadata generation!):
+        diccionarioDeParamsInput = self._encription.encriptaDiccionario(diccionarioDeParamsInput, incluyeMetadatos = True)  # Only the diccionarioDeParamsInput must include metadata about the encription
         diccionarioDeMetadatos = self._encription.encriptaDiccionario(diccionarioDeMetadatos)
 
         # DirB creation
@@ -215,24 +247,53 @@ class zsan_DirB:
 
         self._actualizaMiembros(nombreDeFichero, fullPath, directorio)
     
-    def decrypt(self, directorio: str = os.getcwd(), nombreDeFichero: str = str(datetime.now().strftime("%Y-%m-%dT%H.%M.%S")) + '_' + str(uuid.uuid4()) + '.hdf5'):
+    def desencriptaEnFichero(self, directorio: str = os.getcwd(), nombreDeFichero: str = str(datetime.now().strftime("%Y-%m-%dT%H.%M.%S")) + '_' + str(uuid.uuid4()) + '.hdf5'):
         """
         Desencripta el fichero abierto en memoria y lo guarda en un nuevo fichero, en el caso de que se haya proporcionado una clave previamente.
 
         :param str directorio: directorio donde se creará el caso
         :param str nombreDeFichero: path del fichero nuevo donde se guardará el dirB abierto por esta instancia, pero desencriptado.
         """
+
+        #if not self.dicParamsCaso["encrypted"]
+
         if not self._encription.claveProporcionada():
             print("Clave no proporcionada. Por favor, genere una nueva instancia con la clave adecuada.")
             return
 
-        dicParamsCaso_decrypted = self._encription.desencriptaDiccionario(self.dicParamsCaso, compruebaClave = True)
+        if not self._encription.claveCorrecta(self.dicParamsCaso):
+            print("La clave proporcionada no coincide con la clave del fichero. Por favor, genere una nueva instancia con la clave adecuada")
+            return
+        
+        dicParamsCaso_decrypted = self._encription.desencriptaDiccionario(self.dicParamsCaso)
         dicAtrCaso_decrypted = self._encription.desencriptaDiccionario(self.dicAtrCaso)
+
+        # Desencriptar las soluciones (si hay):
+
 
         # Escribir en nuevo fichero dirB:
 
         
-        return None
+        
+
+    def desencriptaClaves(self):
+        """
+        Desencripta las claves de los diccionarios del Caso y sus Soluciones de los pares <clave, valor>. Los valores se dejan tal y como están.
+        """
+
+        if not self._encription.claveProporcionada():
+            print("Clave no proporcionada. Por favor, genere una nueva instancia con la clave adecuada.")
+            return
+        
+        if not self._encription.claveCorrecta(self.dicParamsCaso):
+            print("La clave proporcionada no coincide con la clave del fichero. Por favor, genere una nueva instancia con la clave adecuada")
+            return
+        
+        # Desencriptar clave de los dict del Caso y de las Soluciones (si hay) y sobreescribir los dicts (self._dicAtrCaso, self._dicParamsCaso, self._dicAtrSoluciones, falta uno de las soluciones!)
+
+
+
+
 
     def cargaCaso(self, nombreDeFichero: str, directorio: str = os.getcwd()):
         """Carga un caso identificado por su nombre de fichero.
@@ -248,11 +309,11 @@ class zsan_DirB:
         
         self._actualizaMiembros(nombreDeFichero, fullPath, directorio)
 
-        if self.dicParamsCaso["encrypted"]:
-            if not self.__fernet:
-                print("El fichero " + nombreDeFichero + " contiene campos encriptados pero ninguna clave fue proporcionada para los mismos.")
-            else:
-                pass
+        # if self.dicParamsCaso["encrypted"]:
+        #     if not self.__fernet:
+        #         print("El fichero " + nombreDeFichero + " contiene campos encriptados pero ninguna clave fue proporcionada para los mismos.")
+        #     else:
+        #         pass
     
     def _actualizaMiembros(self, nombreDeFichero: str, fullPath: str, directorio: str = os.getcwd()):
         self.nombreDeFichero = nombreDeFichero        
@@ -262,26 +323,26 @@ class zsan_DirB:
         self._actualizaMiembrosDerivados()
 
     def _actualizaMiembrosDerivados(self):
-        self.dicAtrCaso, self.dicParamsCaso, self.dicAtrSoluciones = self._getDiccionariosDeAtributos(self.fullPath)
+        self.dicAtrCaso, self.dicParamsCaso, self.dicAtrSoluciones, self.dictParamsSoluciones = self._getDiccionariosDeAtributos(self.fullPath)
 
         self.dataFrameParamsCaso, self.dataFrameAtributosCaso = self._getDataFrameResumenAtributosCaso(self.dicParamsCaso, self.dicAtrCaso)
-        self.dataFrameAtributosSoluciones = self._getDataFrameResumenAtributosSoluciones(self.dicAtrSoluciones)        
+        self.dataFrameParamsSoluciones, self.dataFrameAtributosSoluciones = self._getDataFrameResumenAtributosSoluciones(self.dictParamsSoluciones, self.dicAtrSoluciones)        
         
         self.listaSoluciones = list(self.dicAtrSoluciones.keys())
         self.numeroSoluciones = len(self.listaSoluciones)
 
-    def _getDiccionariosDeAtributos(self, nombreDelFichero: str) -> Tuple[Dict, Dict, Dict]:
-        """Lee estructura de un fichero dirB y consigue los diccionarios de metadatos del caso y de las SOLUCIONES.
+    def _getDiccionariosDeAtributos(self, nombreDelFichero: str) -> Tuple[Dict, Dict, Dict, Dict]:
+        """Lee estructura de un fichero dirB y consigue los diccionarios de metadatos y parámetros del caso y de las SOLUCIONES.
 
         :param str nombreDelFichero: fichero a leer.
         """
 
         with h5py.File(nombreDelFichero, 'r') as f:
             dicAtrCaso = {}
-            dicAtrCaso = {key: value for key, value in f['/CASO'].attrs.items() }
+            dicAtrCaso = { key: value for key, value in f['/CASO'].attrs.items() }
 
             dicParamsCaso = {}
-            dicParamsCaso = {key: value for key, value in json.loads(f['/CASO/JSON_IN'][()].decode('utf-8')).items() }
+            dicParamsCaso = { key: value for key, value in json.loads(f['/CASO/JSON_IN'][()].decode('utf-8')).items() }
 
             # Podría ser que no existieran SOLUCIONES por se un DIR-B recién creado.
             try: 
@@ -289,14 +350,17 @@ class zsan_DirB:
             except:
                 listaDeSoluciones = []
                 
-            dicAtrSoluciones = {}    
+            dicAtrSoluciones = {}
+            dicParamsSolucion = {}
             for numSolucion in listaDeSoluciones:
                 cadenaPathSolEnCurso = '/SOLUCIONES/' + numSolucion
+                
                 dicAtrSoluciones[numSolucion] = { key: value for key, value in f[cadenaPathSolEnCurso].attrs.items() }
+                dicParamsSolucion[numSolucion] = { key: value for key, value in json.loads(f[cadenaPathSolEnCurso + '/JSON_OUT'][()].decode('utf-8')).items() }
               
         esperarDesbloqueoDeHDF5(nombreDelFichero)
         
-        return dicAtrCaso, dicParamsCaso, dicAtrSoluciones
+        return dicAtrCaso, dicParamsCaso, dicAtrSoluciones, dicParamsSolucion
     
     def _getDataFrameResumenAtributosCaso(self, diccionarioParams: Dict, diccionarioAttrs: Dict) -> Tuple[pd.Series, pd.Series]:
         """Devuelve un dataframe (objecto pandas.Series) con atributos del Caso.
@@ -313,18 +377,27 @@ class zsan_DirB:
         
         return dicParamsPDSeries, dicAttrsPDSeries
 
-    def _getDataFrameResumenAtributosSoluciones(self, dicAtrSoluciones: Dict):
+    def _getDataFrameResumenAtributosSoluciones(self, diccionarioParams: Dict, dicAtrSoluciones: Dict):
         """Devuelve un dataframe resumen de todos los atributos de todas las soluciones (ver comentarios) a partir de diccionario atributos soluciones
         """
 
-        if not(dicAtrSoluciones):
-            return pd.DataFrame()  # Un dataFrame vacio
-            
-        aux = [(caso, dicAtributosAux) for caso, dicAtributosAux in dicAtrSoluciones.items()]
-        listaDeClaves = ['SOLUCION  '+str(e[0]) for e in aux]
-        listaDeDiccionarios = [e[1] for e in aux]
+        dictParamsResult = pd.DataFrame()
+        if diccionarioParams:
+            aux = [(caso, dicParamsAux) for caso, dicParamsAux in diccionarioParams.items()]
+            listaDeClaves = ['SOLUCION  '+str(e[0]) for e in aux]
+            listaDeDiccionarios = [e[1] for e in aux]
 
-        return pd.DataFrame.from_records(listaDeDiccionarios, index=listaDeClaves)
+            dictParamsResult = pd.DataFrame.from_records(listaDeDiccionarios, index=listaDeClaves)
+
+        dictAtrsResult = pd.DataFrame()
+        if (dicAtrSoluciones): 
+            aux = [(caso, dicAtributosAux) for caso, dicAtributosAux in dicAtrSoluciones.items()]
+            listaDeClaves = ['SOLUCION  '+str(e[0]) for e in aux]
+            listaDeDiccionarios = [e[1] for e in aux]
+
+            dictAtrsResult = pd.DataFrame.from_records(listaDeDiccionarios, index=listaDeClaves)
+        
+        return dictParamsResult, dictAtrsResult
     
     def guardaNuevaSolucion(self, diccionarioConEl_JSON_OUT: Dict, diccionarioAtributos: Dict = None):
         """Guarda una nueva solución en el dirB.
