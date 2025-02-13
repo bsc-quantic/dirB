@@ -7,13 +7,8 @@ import pathlib
 from datetime import datetime
 from typing import Dict, List, Tuple
 
-import base64
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-
 from dirB.utils import esperarDesbloqueoDeHDF5
-
+from dirB.encryption import Encryption
 
 class zsan_DirB:
     """
@@ -52,16 +47,7 @@ class zsan_DirB:
         self._listaSoluciones: List = None
         self._numeroSoluciones: int = None
 
-        self.__fernet = None
-        if password:
-            print("Todos los datos leídos/escritos con esta instancia se encriptarán con la clave proporcionada.")
-
-            __password_byte = password.encode('utf-8')
-            __salt = os.urandom(16)
-
-            __kdf = PBKDF2HMAC(algorithm = hashes.SHA256(), length = 32, salt = __salt, iterations = 1000000)
-            __key = base64.urlsafe_b64encode(__kdf.derive(__password_byte))
-            self.__fernet = Fernet(__key)
+        self._encription = Encryption(password)
 
     def __repr__(self):
         """ Resumen del DIR-B  mostrando el atributo de la clase dataFrameAtributos. Se llama con print(unDIR-B)
@@ -205,21 +191,20 @@ class zsan_DirB:
         if pathlib.Path(nombreDeFichero).suffix != ".hdf5":
             raise ValueError("El fichero " +  nombreDeFichero + " no tiene extensión HDF5.")
 
-        diccionarioDeParamsInput_procesado: Dict[str, str] = {"encrypted" : "0"}
-        if self.__fernet:
-            diccionarioDeParamsInput_procesado["encrypted"] = "1"
-            for key, value in diccionarioDeParamsInput.items():
-                key_encrypted = self.__fernet.encrypt(str(key).encode('utf-8')).decode('utf-8')
-                val_encrypted = self.__fernet.encrypt(str(value).encode('utf-8')).decode('utf-8')
+        # Encryption
+        if self._encription.claveProporcionada():
+            print("Encriptando ficheros...")
+        diccionarioDeParamsInput = self._encription.encriptaDiccionario(diccionarioDeParamsInput, incluyeMetadatos = True)    # Solamente el diccionarioDeParamsInput debe de incluir metadatos sobre la encriptación
+        diccionarioDeMetadatos = self._encription.encriptaDiccionario(diccionarioDeMetadatos)
 
-                diccionarioDeParamsInput_procesado[key_encrypted] = val_encrypted
-
+        # DirB creation
         fullPath = os.path.join(directorio, nombreDeFichero)
+        print("Creando dirB en " + fullPath + "...")
         with h5py.File(fullPath, 'w') as f:
             caso = f.create_group('CASO')
             
             caso.create_dataset('JSON_IN',
-                                data=json.dumps(diccionarioDeParamsInput_procesado if self.__fernet else diccionarioDeParamsInput, ensure_ascii=False), 
+                                data=json.dumps(diccionarioDeParamsInput, ensure_ascii=False), 
                                 dtype=h5py.string_dtype(encoding='utf-8'))
 
             if diccionarioDeMetadatos:
@@ -230,17 +215,24 @@ class zsan_DirB:
 
         self._actualizaMiembros(nombreDeFichero, fullPath, directorio)
     
-    def decrypt(self, nombreDeFichero: str):
+    def decrypt(self, directorio: str = os.getcwd(), nombreDeFichero: str = str(datetime.now().strftime("%Y-%m-%dT%H.%M.%S")) + '_' + str(uuid.uuid4()) + '.hdf5'):
         """
         Desencripta el fichero abierto en memoria y lo guarda en un nuevo fichero, en el caso de que se haya proporcionado una clave previamente.
 
-        :nombreDeFichero: path del fichero nuevo donde se guardará el dirB abierto por esta instanci, pero desencriptado.
+        :param str directorio: directorio donde se creará el caso
+        :param str nombreDeFichero: path del fichero nuevo donde se guardará el dirB abierto por esta instancia, pero desencriptado.
         """
-        if not self.__fernet:
-            print("Clave no proporcionada en esta instancia.")
-            return None
-        
+        if not self._encription.claveProporcionada():
+            print("Clave no proporcionada. Por favor, genere una nueva instancia con la clave adecuada.")
+            return
 
+        dicParamsCaso_decrypted = self._encription.desencriptaDiccionario(self.dicParamsCaso, compruebaClave = True)
+        dicAtrCaso_decrypted = self._encription.desencriptaDiccionario(self.dicAtrCaso)
+
+        # Escribir en nuevo fichero dirB:
+
+        
+        return None
 
     def cargaCaso(self, nombreDeFichero: str, directorio: str = os.getcwd()):
         """Carga un caso identificado por su nombre de fichero.
