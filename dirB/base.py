@@ -31,7 +31,7 @@ class zsan_DirB:
     Cada solución se guarda por defecto con un número, que, de la misma manera, contiene un conjunto de metadatos y un fichero JSON con los valores resultantes. Todos estos valores son no estructurados. En otras palabras, pueden tener un nombre y un tipo arbitrario, definidos por el usuario en función de sus propias necesidades. La cantidad de valores de salida también es arbitraria.
     """
 
-    def __init__(self, password: str = None):
+    def __init__(self):
         self._nombreDeFichero: str = None
         self._fullPath: str = None
         self._directorio: str = None
@@ -39,7 +39,7 @@ class zsan_DirB:
         self._dicAtrCaso: Dict = None
         self._dicParamsCaso: Dict = None
         self._dicAtrSoluciones: Dict = None
-        self._dictParamsSoluciones: Dict = None
+        self._dicParamsSoluciones: Dict = None
         
         self._dataFrameAtributosCaso = None
         self._dataFrameParamsCaso = None
@@ -49,7 +49,7 @@ class zsan_DirB:
         self._listaSoluciones: List = None
         self._numeroSoluciones: int = None
 
-        self._encription = Encryption(password)
+        self._encryption = Encryption()
 
     def __repr__(self):
         """ Resumen del DIR-B  mostrando el atributo de la clase dataFrameAtributos. Se llama con print(unDIR-B)
@@ -80,7 +80,7 @@ class zsan_DirB:
             cadena += '\n **** Aún no se han cargado soluciones en el DIR-B ****** '
             cadena += ' \n'          
         else:
-            if self.dictParamsSoluciones:
+            if self.dicParamsSoluciones:
                 cadena += '\n **** Parámetros de soluciones incluidas en el DIR-B ****** '
                 cadena += ' \n'
                 cadena += ' \n'      
@@ -89,7 +89,7 @@ class zsan_DirB:
             else:
                 cadena += '\n **** NO hay PARÁMETROS cargados en las SOLUCIONES el DIR-B  ****** \n'
             
-            if self.dictParamsSoluciones:
+            if self.dicAtrSoluciones:
                 cadena += '\n **** Atributos de soluciones incluidas en el DIR-B ****** '
                 cadena += ' \n'
                 cadena += ' \n'      
@@ -126,8 +126,8 @@ class zsan_DirB:
         return self._dicAtrSoluciones
     
     @property
-    def dictParamsSoluciones(self):
-        return self._dictParamsSoluciones
+    def dicParamsSoluciones(self):
+        return self._dicParamsSoluciones
     
     @property
     def dataFrameAtributosCaso(self):
@@ -177,9 +177,9 @@ class zsan_DirB:
     def dicAtrSoluciones(self, new_dicAtrSoluciones: str):
         self._dicAtrSoluciones = new_dicAtrSoluciones
 
-    @dictParamsSoluciones.setter
-    def dictParamsSoluciones(self, new_dictParamsSoluciones: str):
-        self._dictParamsSoluciones = new_dictParamsSoluciones
+    @dicParamsSoluciones.setter
+    def dicParamsSoluciones(self, new_dicParamsSoluciones: str):
+        self._dicParamsSoluciones = new_dicParamsSoluciones
     
     @dataFrameAtributosCaso.setter
     def dataFrameAtributosCaso(self, new_dataFrameAtributosCaso: str):
@@ -207,7 +207,8 @@ class zsan_DirB:
 
     def creaNuevoCaso(self, diccionarioDeParamsInput: Dict[str, str], diccionarioDeMetadatos: Dict = None, 
                       directorio: str = os.getcwd(), 
-                      nombreDeFichero: str = str(datetime.now().strftime("%Y-%m-%dT%H.%M.%S")) + '_' + str(uuid.uuid4()) + '.hdf5'):
+                      nombreDeFichero: str = str(datetime.now().strftime("%Y-%m-%dT%H.%M.%S")) + '_' + str(uuid.uuid4()) + '.hdf5',
+                      password: str = None):
         """Crea un nuevo caso teniendo en cuenta el dataset principal y los metadatos proporcionados.
 
         :param Dict diccionarioDeParamsInput: dataset principal en formato JSON. Contiene los parámetros de entrada del caso.
@@ -219,15 +220,12 @@ class zsan_DirB:
         if pathlib.Path(nombreDeFichero).suffix != ".hdf5":
             raise ValueError("El fichero " +  nombreDeFichero + " no tiene extensión HDF5.")
 
-        # Encryption
-        if self._encription.claveProporcionada():
-            print("Encriptando ficheros...")
-        # else:
-        #     print("Clave no proporcionada, encriptación no disponible.")
+        if password:
+            self._encryption.createNewEncryption(password)
 
-        # Call this outside the 'if' statements (needed for encription metadata generation!):
-        diccionarioDeParamsInput = self._encription.encriptaDiccionario(diccionarioDeParamsInput, incluyeMetadatos = True)  # Only the diccionarioDeParamsInput must include metadata about the encription
-        diccionarioDeMetadatos = self._encription.encriptaDiccionario(diccionarioDeMetadatos)
+        # Needed for encription metadata generation:
+        diccionarioDeParamsInput = self._encryption.encriptaDiccionario(diccionarioDeParamsInput, incluyeMetadatos = True)  # Only the diccionarioDeParamsInput must include metadata about the encription
+        diccionarioDeMetadatos = self._encryption.encriptaDiccionario(diccionarioDeMetadatos)
 
         # DirB creation
         fullPath = os.path.join(directorio, nombreDeFichero)
@@ -247,6 +245,24 @@ class zsan_DirB:
 
         self._actualizaMiembros(nombreDeFichero, fullPath, directorio)
     
+    def __everythingsAllright(self) -> bool:
+        if self.dicParamsCaso["encrypted"] == "False":
+            print("Fichero no encriptado.")
+            return False
+
+        if not self._encryption.encriptacionHabilitada():
+            print("Encriptación no habilitada")
+            return False
+        
+        if not "password" not in self.dicParamsCaso:
+            print("Clave no proporcionada.")
+        
+        if not self._encryption.claveCorrecta(encryptedPassword = self.dicParamsCaso["password"]):
+            print("La clave proporcionada no coincide con la clave del fichero.")
+            return False
+        
+        return True
+
     def desencriptaEnFichero(self, directorio: str = os.getcwd(), nombreDeFichero: str = str(datetime.now().strftime("%Y-%m-%dT%H.%M.%S")) + '_' + str(uuid.uuid4()) + '.hdf5'):
         """
         Desencripta el fichero abierto en memoria y lo guarda en un nuevo fichero, en el caso de que se haya proporcionado una clave previamente.
@@ -255,21 +271,16 @@ class zsan_DirB:
         :param str nombreDeFichero: path del fichero nuevo donde se guardará el dirB abierto por esta instancia, pero desencriptado.
         """
 
-        #if not self.dicParamsCaso["encrypted"]
-
-        if not self._encription.claveProporcionada():
-            print("Clave no proporcionada. Por favor, genere una nueva instancia con la clave adecuada.")
-            return
-
-        if not self._encription.claveCorrecta(self.dicParamsCaso):
-            print("La clave proporcionada no coincide con la clave del fichero. Por favor, genere una nueva instancia con la clave adecuada")
-            return
+        if not self.__everythingsAllright():
+            return None
         
-        dicParamsCaso_decrypted = self._encription.desencriptaDiccionario(self.dicParamsCaso)
-        dicAtrCaso_decrypted = self._encription.desencriptaDiccionario(self.dicAtrCaso)
+        self.dicParamsCaso = self._encryption.desencriptaDiccionario(self.dicParamsCaso)
+        self.dicAtrCaso = self._encryption.desencriptaDiccionario(self.dicAtrCaso)
 
         # Desencriptar las soluciones (si hay):
 
+
+        # Actualizar dataframes
 
         # Escribir en nuevo fichero dirB:
 
@@ -281,26 +292,71 @@ class zsan_DirB:
         Desencripta las claves de los diccionarios del Caso y sus Soluciones de los pares <clave, valor>. Los valores se dejan tal y como están.
         """
 
-        if not self._encription.claveProporcionada():
-            print("Clave no proporcionada. Por favor, genere una nueva instancia con la clave adecuada.")
-            return
-        
-        if not self._encription.claveCorrecta(self.dicParamsCaso):
-            print("La clave proporcionada no coincide con la clave del fichero. Por favor, genere una nueva instancia con la clave adecuada")
-            return
+        if not self.__everythingsAllright():
+            return None
         
         # Desencriptar clave de los dict del Caso y de las Soluciones (si hay) y sobreescribir los dicts (self._dicAtrCaso, self._dicParamsCaso, self._dicAtrSoluciones, falta uno de las soluciones!)
+        self.dicParamsCaso = self._encryption.desencriptaDiccionario(self.dicParamsCaso, soloKeys = True)
+        self.dicAtrCaso = self._encryption.desencriptaDiccionario(self.dicAtrCaso, soloKeys = True)
 
+        self.dicParamsSoluciones = self._encryption.desencriptaDiccionario(self.dicParamsSoluciones, soloKeys = True)
+        self.dicAtrSoluciones = self._encryption.desencriptaDiccionario(self.dicAtrSoluciones, soloKeys = True)
 
+        self._actualizaMiembrosDerivados(readFromFile = False)
 
+    def desencriptaCampo_ParamsCaso(self, key: str) -> str:
+        if not self.__everythingsAllright():
+            return None
 
+        if not self.dicParamsCaso[key]:
+            print("Campo no disponible en el diccionario de Parámetros del Caso.")
+            return None
+        
+        return self._encryption.desencriptaTexto(self.dicParamsCaso[key])
 
-    def cargaCaso(self, nombreDeFichero: str, directorio: str = os.getcwd()):
+    def desencriptaCampo_AttrsCaso(self, key: str) -> str:
+        if not self.__everythingsAllright():
+            return None
+
+        if not self.dicAtrCaso[key]:
+            print("Campo no disponible en el diccionario de Parámetros del Caso.")
+            return None
+        
+        return self._encryption.desencriptaTexto(self.dicAtrCaso[key])
+
+    def desencriptaCampo_ParamSolucion(self, idSolucion: int, key: str) -> str:
+        if not self.__everythingsAllright():
+            return None
+
+        return None
+
+    def desencriptaCampo_AttrsSolucion(self, idSolucion: int, key: str) -> str:
+        if not self.__everythingsAllright():
+            return None
+
+        return None
+
+    def __initEncryption(self, password: str):
+        if self.dicParamsCaso["encrypted"] == "True":
+            if not "password" in self.dicParamsCaso or not "salt" in self.dicParamsCaso:
+                print("File corrupted: metadata needed for encryption/decryption ('password' and 'salt') is not available in the encrypted file.")
+            
+            print("Initializing encryption instance with password and salt parameters...")
+            self._encryption.loadEncryption(password, self.dicParamsCaso["salt"])
+
+            if not self._encryption.claveCorrecta(encryptedPassword = self.dicParamsCaso["password"]):
+                print("Clave no correcta.")
+            else:
+                print("Clave correcta")
+
+    def cargaCaso(self, nombreDeFichero: str, directorio: str = os.getcwd(),
+                  password: str = None):
         """Carga un caso identificado por su nombre de fichero.
         
         :param str nombreDeFichero: nombre del fichero con el caso a cargar (identificador).
         :param str directorio: directorio desde donde se cargará el caso.
-
+        :param str password: la clave usada para desencriptar el fichero (en el caso de que esté encriptado) y encriptar los nuevos campos.
+        
         """
         fullPath = os.path.join(directorio, nombreDeFichero)
 
@@ -309,11 +365,7 @@ class zsan_DirB:
         
         self._actualizaMiembros(nombreDeFichero, fullPath, directorio)
 
-        # if self.dicParamsCaso["encrypted"]:
-        #     if not self.__fernet:
-        #         print("El fichero " + nombreDeFichero + " contiene campos encriptados pero ninguna clave fue proporcionada para los mismos.")
-        #     else:
-        #         pass
+        self.__initEncryption(password)
     
     def _actualizaMiembros(self, nombreDeFichero: str, fullPath: str, directorio: str = os.getcwd()):
         self.nombreDeFichero = nombreDeFichero        
@@ -322,11 +374,12 @@ class zsan_DirB:
         
         self._actualizaMiembrosDerivados()
 
-    def _actualizaMiembrosDerivados(self):
-        self.dicAtrCaso, self.dicParamsCaso, self.dicAtrSoluciones, self.dictParamsSoluciones = self._getDiccionariosDeAtributos(self.fullPath)
+    def _actualizaMiembrosDerivados(self, readFromFile = True):
+        if readFromFile:
+            self.dicAtrCaso, self.dicParamsCaso, self.dicAtrSoluciones, self.dicParamsSoluciones = self._getDiccionariosDeAtributos(self.fullPath)
 
         self.dataFrameParamsCaso, self.dataFrameAtributosCaso = self._getDataFrameResumenAtributosCaso(self.dicParamsCaso, self.dicAtrCaso)
-        self.dataFrameParamsSoluciones, self.dataFrameAtributosSoluciones = self._getDataFrameResumenAtributosSoluciones(self.dictParamsSoluciones, self.dicAtrSoluciones)        
+        self.dataFrameParamsSoluciones, self.dataFrameAtributosSoluciones = self._getDataFrameResumenAtributosSoluciones(self.dicParamsSoluciones, self.dicAtrSoluciones)        
         
         self.listaSoluciones = list(self.dicAtrSoluciones.keys())
         self.numeroSoluciones = len(self.listaSoluciones)
@@ -497,7 +550,7 @@ class zsan_DirB:
         cadena += '\n'
         if self.dicAtrCaso: 
             cadena += '\n **** Atributos del CASO incluido en el DIR-B  ****** '
-            cadena += '\n'
+            cadena += '\n'  
             cadena += self.dataFrameAtributosCaso.to_string()
         else:
             cadena += '\n **** En el CASO no han sido cargados atributos  ****** \n'
