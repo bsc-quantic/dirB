@@ -112,13 +112,13 @@ class Encryption:
 
         return diccionario_encrypted
 
-    def desencriptaDiccionario(self, diccionario: Dict[str, str], soloKeys: bool = False) -> Tuple[bool, Dict[str, str]]:
+    def desencriptaDiccionario(self, diccionario: Dict[str, str], soloClaves: bool = False) -> Tuple[bool, Dict[str, str]]:
         """
         Desencripta el diccionario pasado por parámetro con la clave proporcionada al crear la instancia. Asume que la clave 
         que alguna clave fue proporcionada y que además es correcta (no lo comprueba).
         
         :param Dict[str, str] diccionario: el diccionario a desencriptar.
-        :param bool soloKeys: si True, tan sólo las claves de los pares <clave, valor> del diccionario retornado estarán 
+        :param bool soloClaves: si True, tan sólo las claves de los pares <clave, valor> del diccionario retornado estarán 
                               desencriptadas. Si False, el diccionario completo se retornará desencriptado.
         :return Dict[str, str]: el diccionario desencriptado.
         """
@@ -133,7 +133,7 @@ class Encryption:
         dicParamsCaso_decrypted: Dict[str, str] = {}
         for key, value in diccionario.items():
             if key == "encrypted":
-                if soloKeys: 
+                if soloClaves: 
                     dicParamsCaso_decrypted["encrypted"] = "True"
                 else:
                     dicParamsCaso_decrypted["encrypted"] = "False"
@@ -142,7 +142,7 @@ class Encryption:
             else:
                 key_decrypted = self.__desencriptaString(key)
 
-                dicParamsCaso_decrypted[key_decrypted] = value if soloKeys else self.__desencriptaString(value)
+                dicParamsCaso_decrypted[key_decrypted] = value if soloClaves else self.__desencriptaString(value)
 
         return dicParamsCaso_decrypted
 

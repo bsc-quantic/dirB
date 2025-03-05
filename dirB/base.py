@@ -50,6 +50,7 @@ class zsan_DirB:
         self._numeroSoluciones: int = None
 
         self._encryption = Encryption()
+        self._caseLoadedSuccessfully = False
 
     def __repr__(self):
         """ Resumen del DIR-B  mostrando el atributo de la clase dataFrameAtributos. Se llama con print(unDIR-B)
@@ -244,6 +245,8 @@ class zsan_DirB:
         esperarDesbloqueoDeHDF5(fullPath)
 
         self._actualizaMiembros(nombreDeFichero, fullPath, directorio)
+
+        self._caseLoadedSuccessfully = True
     
     def __everythingsAllright(self) -> bool:
         if self.dicParamsCaso["encrypted"] == "False":
@@ -254,8 +257,9 @@ class zsan_DirB:
             print("Encriptación no habilitada")
             return False
         
-        if not "password" not in self.dicParamsCaso:
-            print("Clave no proporcionada.")
+        if "password" not in self.dicParamsCaso:
+            print("Clave no presente en el diccionario de Parámetros del Caso.")
+            return False
         
         if not self._encryption.claveCorrecta(encryptedPassword = self.dicParamsCaso["password"]):
             print("La clave proporcionada no coincide con la clave del fichero.")
@@ -296,11 +300,14 @@ class zsan_DirB:
             return None
         
         # Desencriptar clave de los dict del Caso y de las Soluciones (si hay) y sobreescribir los dicts (self._dicAtrCaso, self._dicParamsCaso, self._dicAtrSoluciones, falta uno de las soluciones!)
-        self.dicParamsCaso = self._encryption.desencriptaDiccionario(self.dicParamsCaso, soloKeys = True)
-        self.dicAtrCaso = self._encryption.desencriptaDiccionario(self.dicAtrCaso, soloKeys = True)
+        self.dicParamsCaso = self._encryption.desencriptaDiccionario(self.dicParamsCaso, soloClaves = True)
+        self.dicAtrCaso = self._encryption.desencriptaDiccionario(self.dicAtrCaso, soloClaves = True)
 
-        self.dicParamsSoluciones = self._encryption.desencriptaDiccionario(self.dicParamsSoluciones, soloKeys = True)
-        self.dicAtrSoluciones = self._encryption.desencriptaDiccionario(self.dicAtrSoluciones, soloKeys = True)
+        for key, _ in self.dicParamsSoluciones.items():
+            self.dicParamsSoluciones[key] = self._encryption.desencriptaDiccionario(self.dicParamsSoluciones[key], soloClaves = True)
+
+        for key, _ in self.dicAtrSoluciones.items():
+            self.dicAtrSoluciones[key] = self._encryption.desencriptaDiccionario(self.dicAtrSoluciones[key], soloClaves = True)
 
         self._actualizaMiembrosDerivados(readFromFile = False)
 
@@ -324,30 +331,51 @@ class zsan_DirB:
         
         return self._encryption.desencriptaTexto(self.dicAtrCaso[key])
 
-    def desencriptaCampo_ParamSolucion(self, idSolucion: int, key: str) -> str:
+    def desencriptaCampo_ParamSolucion(self, idSolucion: str, key: str) -> str:
         if not self.__everythingsAllright():
             return None
 
-        return None
+        if not idSolucion in self.dicParamsSoluciones:
+            print("La solución " + idSolucion + " no existe.")
 
-    def desencriptaCampo_AttrsSolucion(self, idSolucion: int, key: str) -> str:
+        if not key in self.dicParamsSoluciones[idSolucion]:
+            print("Campo no disponible en el diccionario de Parámetros de la Solución con ID " + idSolucion)
+
+        return self._encryption.desencriptaTexto(self.dicParamsSoluciones[idSolucion][key])
+
+    def desencriptaCampo_AttrsSolucion(self, idSolucion: str, key: str) -> str:
         if not self.__everythingsAllright():
             return None
 
-        return None
+        if not idSolucion in self.dicAtrSoluciones:
+            print("La solución " + idSolucion + " no existe.")
 
-    def __initEncryption(self, password: str):
+        if not key in self.dicAtrSoluciones[idSolucion]:
+            print("Campo no disponible en el diccionario de Parámetros de la Solución con ID " + idSolucion)
+
+        return self._encryption.desencriptaTexto(self.dicAtrSoluciones[idSolucion][key])
+
+    def __initEncryption(self, password: str) -> bool:
         if self.dicParamsCaso["encrypted"] == "True":
+            if not password:
+                print("Fichero encriptado, se debe de proporcionar una clave.")
+                return False
+
             if not "password" in self.dicParamsCaso or not "salt" in self.dicParamsCaso:
                 print("File corrupted: metadata needed for encryption/decryption ('password' and 'salt') is not available in the encrypted file.")
+                return False
             
             print("Initializing encryption instance with password and salt parameters...")
             self._encryption.loadEncryption(password, self.dicParamsCaso["salt"])
 
             if not self._encryption.claveCorrecta(encryptedPassword = self.dicParamsCaso["password"]):
                 print("Clave no correcta.")
+                return False
             else:
                 print("Clave correcta")
+                return True
+        
+        return True
 
     def cargaCaso(self, nombreDeFichero: str, directorio: str = os.getcwd(),
                   password: str = None):
@@ -365,7 +393,9 @@ class zsan_DirB:
         
         self._actualizaMiembros(nombreDeFichero, fullPath, directorio)
 
-        self.__initEncryption(password)
+        correctPassword: bool = self.__initEncryption(password)
+        if correctPassword:
+            self._caseLoadedSuccessfully = True
     
     def _actualizaMiembros(self, nombreDeFichero: str, fullPath: str, directorio: str = os.getcwd()):
         self.nombreDeFichero = nombreDeFichero        
@@ -459,9 +489,19 @@ class zsan_DirB:
         :param Dict diccionarioAtributos: diccionario con los metadatos del caso.
         """
 
+        if not self._caseLoadedSuccessfully:
+            print("El caso no fue cargado correctamente. Comprueba que la contraseña sea correcta.")
+            return None
+
+        if self._encryption.encriptacionHabilitada():
+            print("La solución se encriptará.")
+
+        diccionarioConEl_JSON_OUT = self._encryption.encriptaDiccionario(diccionarioConEl_JSON_OUT)
+        diccionarioAtributos = self._encryption.encriptaDiccionario(diccionarioAtributos)
+
         with h5py.File(self.fullPath, 'a') as f:
             if self.numeroSoluciones == 0:
-                f.create_group('/SOLUCIONES')   
+                f.create_group('/SOLUCIONES')
 
             cadena = '/SOLUCIONES/' + str(self.numeroSoluciones + 1)
             f.create_group(cadena)
@@ -484,6 +524,10 @@ class zsan_DirB:
         :param List[Dict] listaDeSoluciones: lista con los diccionarios que representan las soluciones a guardar.
         :param List[Dict] listaDeAtributosDeSoluciones: lista de los atributos de las soluciones a guardar.
         """
+
+        if not self._caseLoadedSuccessfully:
+            print("El caso no fue cargado correctamente. Comprueba que la contraseña sea correcta.")
+            return None
 
         if len(listaDeSoluciones) != len(listaDeAtributosDeSoluciones):
             raise ValueError("Las listas no tienen el mismo tamaño!")
