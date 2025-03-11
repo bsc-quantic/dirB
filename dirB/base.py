@@ -267,6 +267,16 @@ class zsan_DirB:
         
         return True
 
+    def __decryptCaseAndSolutions(self, onlyKeys):
+        self.dicParamsCaso = self._encryption.desencriptaDiccionario(self.dicParamsCaso, soloClaves = onlyKeys)
+        self.dicAtrCaso = self._encryption.desencriptaDiccionario(self.dicAtrCaso, soloClaves = onlyKeys)
+
+        for key, _ in self.dicParamsSoluciones.items():
+            self.dicParamsSoluciones[key] = self._encryption.desencriptaDiccionario(self.dicParamsSoluciones[key], soloClaves = onlyKeys)
+
+        for key, _ in self.dicAtrSoluciones.items():
+            self.dicAtrSoluciones[key] = self._encryption.desencriptaDiccionario(self.dicAtrSoluciones[key], soloClaves = onlyKeys)
+
     def desencriptaEnFichero(self, directorio: str = os.getcwd(), nombreDeFichero: str = str(datetime.now().strftime("%Y-%m-%dT%H.%M.%S")) + '_' + str(uuid.uuid4()) + '.hdf5'):
         """
         Desencripta el fichero abierto en memoria y lo guarda en un nuevo fichero, en el caso de que se haya proporcionado una clave previamente.
@@ -278,13 +288,8 @@ class zsan_DirB:
         if not self.__everythingsAllright():
             return None
         
-        self.dicParamsCaso = self._encryption.desencriptaDiccionario(self.dicParamsCaso)
-        self.dicAtrCaso = self._encryption.desencriptaDiccionario(self.dicAtrCaso)
-
-        # Desencriptar las soluciones (si hay):
-
-
-        # Actualizar dataframes
+        self.__decryptCaseAndSolutions(False)
+        self._actualizaMiembrosDerivados(readFromFile = False)
 
         # Escribir en nuevo fichero dirB:
 
@@ -299,16 +304,7 @@ class zsan_DirB:
         if not self.__everythingsAllright():
             return None
         
-        # Desencriptar clave de los dict del Caso y de las Soluciones (si hay) y sobreescribir los dicts (self._dicAtrCaso, self._dicParamsCaso, self._dicAtrSoluciones, falta uno de las soluciones!)
-        self.dicParamsCaso = self._encryption.desencriptaDiccionario(self.dicParamsCaso, soloClaves = True)
-        self.dicAtrCaso = self._encryption.desencriptaDiccionario(self.dicAtrCaso, soloClaves = True)
-
-        for key, _ in self.dicParamsSoluciones.items():
-            self.dicParamsSoluciones[key] = self._encryption.desencriptaDiccionario(self.dicParamsSoluciones[key], soloClaves = True)
-
-        for key, _ in self.dicAtrSoluciones.items():
-            self.dicAtrSoluciones[key] = self._encryption.desencriptaDiccionario(self.dicAtrSoluciones[key], soloClaves = True)
-
+        self.__decryptCaseAndSolutions(True)
         self._actualizaMiembrosDerivados(readFromFile = False)
 
     def desencriptaCampo_ParamsCaso(self, key: str) -> str:
